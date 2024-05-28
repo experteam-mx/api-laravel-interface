@@ -1,0 +1,37 @@
+{
+    "name": "experteam/api-laravel-interface",
+    "description": "Library to help with Laravel Interfaces Libraries",
+    "homepage": "https://github.com/experteam-mx/api-laravel-interface",
+    "keywords": [
+        "laravel",
+        "interface",
+        "experteam"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Renán Rivadeneira",
+            "email": "renan.rivadeneira@experteam.com.ec",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=8.0.2",
+        "ext-json": "*",
+        "laravel/framework": "^9.0",
+        "experteam/api-laravel-base": "^2.0",
+        "mongodb/laravel-mongodb": "^3.9"
+    },
+    "autoload": {
+        "psr-4": {
+            "Experteam\\ApiLaravelInterface\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Experteam\\ApiLaravelInterface\\ApiLaravelInterfaceServiceProvider"
+            ]
+        }
+    }
+}
