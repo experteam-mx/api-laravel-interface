@@ -3,7 +3,6 @@
 namespace Experteam\ApiLaravelInterface\Utils;
 
 use Carbon\Carbon;
-use function App\Utils\Collect;
 
 class InterfaceService
 {
