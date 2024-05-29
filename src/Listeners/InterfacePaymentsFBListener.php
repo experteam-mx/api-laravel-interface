@@ -15,30 +15,30 @@ use Psy\Readline\Hoa\Console;
 
 class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 {
-    private ?Collection $countryPaymentTypeFieldAccounts = null;
-    private ?Collection $countryPaymentTypeFieldCartTypes = null;
-    private ?Collection $companyCountryCurrency = null;
-    private Collection $deposits;
-    private array $closing = [];
-    private array $countryPaymentTypes = [];
-    private string $language = "ES";
-    private string $countryCode = "EC10";
-    private string $cashAccount = "1261000080";
-    private string $checkAccount = "1269000080";
-    private string $tolerancePlusCostCenter = "8091850002";
-    private string $toleranceMinusCostCenter = "8091850002";
-    private string $tolerancePlusAccount = "3626020010";
-    private string $toleranceMinusAccount = "3219400030";
-    private string $cashAccount_usd = "1261000080";
-    private string $checkAccount_usd = "1261000080";
-    private string $tolerancePlusCostCenter_usd = "8091850002";
-    private string $toleranceMinusCostCenter_usd = "8091850002";
-    private string $tolerancePlusAccount_usd = "3626020010";
-    private string $toleranceMinusAccount_usd = "3219400030";
-    private string $creditCardAccount_usd = "1263004014";
-    private string $debitCardAccount_usd = "1263004014";
+    public ?Collection $countryPaymentTypeFieldAccounts = null;
+    public ?Collection $countryPaymentTypeFieldCartTypes = null;
+    public ?Collection $companyCountryCurrency = null;
+    public Collection $deposits;
+    public array $closing = [];
+    public array $countryPaymentTypes = [];
+    public string $language = "ES";
+    public string $countryCode = "EC10";
+    public string $cashAccount = "1261000080";
+    public string $checkAccount = "1269000080";
+    public string $tolerancePlusCostCenter = "8091850002";
+    public string $toleranceMinusCostCenter = "8091850002";
+    public string $tolerancePlusAccount = "3626020010";
+    public string $toleranceMinusAccount = "3219400030";
+    public string $cashAccount_usd = "1261000080";
+    public string $checkAccount_usd = "1261000080";
+    public string $tolerancePlusCostCenter_usd = "8091850002";
+    public string $toleranceMinusCostCenter_usd = "8091850002";
+    public string $tolerancePlusAccount_usd = "3626020010";
+    public string $toleranceMinusAccount_usd = "3219400030";
+    public string $creditCardAccount_usd = "1263004014";
+    public string $debitCardAccount_usd = "1263004014";
 
-    public function handle($event): void
+    public function getPayments($event): ?Collection
     {
         $this->setLogLine("Start Interface process");
         $this->interfaceRequestId = $event->interfaceRequest->id;
@@ -60,123 +60,113 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
         $openingIds = $deposits = [];
 
-        try {
+        $countryId = intval(json_decode(Redis::hget('catalogs.country.code', $this->country))->id);
 
-            $countryId = intval(json_decode(Redis::hget('catalogs.country.code', $this->country))->id);
+        $this->setLogLine("Get $this->country country id " . $countryId);
 
-            $this->setLogLine("Get $this->country country id " . $countryId);
-
-            $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
-                ->get(config('experteam-crud.companies.company-countries.get_all'), [
+        $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
+            ->get(config('experteam-crud.companies.company-countries.get_all'), [
                 'country_id' => $countryId,
                 'company@name' => $event->company ?? 'DHL'
             ]);
 
-            $companyCountryId = $companyCountries['company_countries'][0]['id'];
+        $companyCountryId = $companyCountries['company_countries'][0]['id'];
 
-            $this->setLogLine("Get company country id " . $companyCountryId);
+        $this->setLogLine("Get company country id " . $companyCountryId);
 
-            $this->companyCountryCurrency = $this->getCompanyCountryCurrencies($companyCountryId);
+        $this->companyCountryCurrency = $this->getCompanyCountryCurrencies($companyCountryId);
 
-            $locations = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
-                ->get(config('experteam-crud.companies.locations.get_all'),[
+        $locations = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
+            ->get(config('experteam-crud.companies.locations.get_all'), [
                 'company_country_id' => $companyCountryId,
                 'limit' => 1000
             ]);
 
-            $this->locations = Collect($locations['locations']);
+        $this->locations = Collect($locations['locations']);
 
-            $locationIds = array_column($locations['locations'], 'id');
+        $locationIds = array_column($locations['locations'], 'id');
 
-            $this->setLogLine("Get location ids " . implode(', ', $locationIds));
+        $this->setLogLine("Get location ids " . implode(', ', $locationIds));
 
-            $Closings = ApiClientFacade::setBaseUrl(config('experteam-crud.cash-operations.base_url'))
-                ->get(config('experteam-crud.cash-operations.closing.get_all'),[
+        $Closings = ApiClientFacade::setBaseUrl(config('experteam-crud.cash-operations.base_url'))
+            ->get(config('experteam-crud.cash-operations.closing.get_all'), [
                 'locationIds' => $locationIds,
                 'startDateTime' => $start,
                 'endDateTime' => $end
             ]);
 
-            if (!isset($Closings['closings'])) {
-                $this->setLogLine("Bad response from Api Cash Operations");
-                $this->setLogLine(json_encode($Closings));
-                return;
+        if (!isset($Closings['closings'])) {
+            $this->setLogLine("Bad response from Api Cash Operations");
+            $this->setLogLine(json_encode($Closings));
+            return null;
+        }
+
+        if (count($Closings['closings']) == 0) {
+            $this->setLogLine("No closings from Api Cash Operations");
+            return null;
+        }
+
+        foreach ($Closings['closings'] as $closing) {
+            $tmpOpeningIds = array_column($closing['openings'], 'id');
+            $openingIds = array_merge($openingIds, $tmpOpeningIds);
+
+            $this->closing[] = array_merge($closing, ['openingIds' => $openingIds]);
+
+            if (empty($closing['deposits']))
+                continue;
+
+            $tmpDeposits = $closing['deposits'];
+            foreach ($tmpDeposits as $key => $deposit) {
+                $tmpDeposits[$key]['openingIds'] = $tmpOpeningIds;
             }
+            $deposits = array_merge($deposits, $tmpDeposits);
+        }
 
-            if (count($Closings['closings']) == 0) {
-                $this->setLogLine("No closings from Api Cash Operations");
-                return;
-            }
+        $this->setLogLine("Get openings ids " . implode(', ', $openingIds));
+        $this->setLogLine("Get Deposits " . json_encode($deposits));
 
-            foreach ($Closings['closings'] as $closing) {
-                $tmpOpeningIds = array_column($closing['openings'], 'id');
-                $openingIds = array_merge($openingIds, $tmpOpeningIds);
+        $this->deposits = Collect($deposits);
 
-                $this->closing[] = array_merge($closing, ['openingIds' => $openingIds]);
+        $payments = InterfaceFacade::getPaymentsInvoices($openingIds);
 
-                if (empty($closing['deposits']))
-                    continue;
+        if ($payments->count() == 0) {
+            $this->setLogLine("No payments associated to given openings");
+            return null;
+        }
 
-                $tmpDeposits = $closing['deposits'];
-                foreach ($tmpDeposits as $key => $deposit) {
-                    $tmpDeposits[$key]['openingIds'] = $tmpOpeningIds;
-                }
-                $deposits = array_merge($deposits, $tmpDeposits);
-            }
-
-            $this->setLogLine("Get openings ids " . implode(', ', $openingIds));
-            $this->setLogLine("Get Deposits " . json_encode($deposits));
-
-            $this->deposits = Collect($deposits);
-
-            $payments = InterfaceFacade::getPaymentsInvoices($openingIds);
-
-            if ($payments->count() == 0) {
-                $this->setLogLine("No payments associated to given openings");
-                return;
-            }
-
-            $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
-                ->get(config('experteam-crud.invoices.country_payment_types.get_all'),[
+        $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+            ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
                 'country_id' => $countryId,
             ]);
 
-            foreach ($countryPaymentTypesResponse['country_payment_types'] as $countryPaymentType) {
-                $this->countryPaymentTypes[$countryPaymentType['name']] = $countryPaymentType['id'];
-            }
+        foreach ($countryPaymentTypesResponse['country_payment_types'] as $countryPaymentType) {
+            $this->countryPaymentTypes[$countryPaymentType['name']] = $countryPaymentType['id'];
+        }
 
-            $this->setLogLine("Get Country Payment Type ids " . json_encode($this->countryPaymentTypes));
+        $this->setLogLine("Get Country Payment Type ids " . json_encode($this->countryPaymentTypes));
 
-            $countryPaymentTypeFieldAccountsResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
-                ->get(config('experteam-crud.invoices.payment_type_field_accounts.get_all'),[
+        $countryPaymentTypeFieldAccountsResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+            ->get(config('experteam-crud.invoices.payment_type_field_accounts.get_all'), [
                 'country_payment_type_field@country_payment_type_id' => ['in' => [
                     $this->countryPaymentTypes['Transfer'],
                 ]],
             ]);
 
-            $this->countryPaymentTypeFieldAccounts = Collect($countryPaymentTypeFieldAccountsResponse['country_payment_type_field_accounts']);
-            $this->setLogLine("Get Country Payment Type Field Accounts");
+        $this->countryPaymentTypeFieldAccounts = Collect($countryPaymentTypeFieldAccountsResponse['country_payment_type_field_accounts']);
+        $this->setLogLine("Get Country Payment Type Field Accounts");
 
-            $countryPaymentTypeFieldCardTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
-                ->get(config('experteam-crud.invoices.payment_type_field_card_types.get_all'),[
+        $countryPaymentTypeFieldCardTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+            ->get(config('experteam-crud.invoices.payment_type_field_card_types.get_all'), [
                 'country_payment_type_field@country_payment_type_id' => ['in' => [
                     $this->countryPaymentTypes['Credit Card'],
                     $this->countryPaymentTypes['Debit Card'],
                 ]],
             ]);
 
-            $this->countryPaymentTypeFieldCartTypes = Collect($countryPaymentTypeFieldCardTypesResponse['country_payment_type_field_card_types']);
-            $this->setLogLine("Get Country Payment Type Field Card Types");
+        $this->countryPaymentTypeFieldCartTypes = Collect($countryPaymentTypeFieldCardTypesResponse['country_payment_type_field_card_types']);
+        $this->setLogLine("Get Country Payment Type Field Card Types");
 
-            $this->paymentTypeGrouped($payments);
-//            $this->singleFile($payments);
-
-            $event->interfaceRequest->update(['status' => 1]);
-
-        } catch (\Exception $e) {
-            dump($e);
-            $event->interfaceRequest->update(['status' => 2]);
-        }
+        return $payments;
     }
 
     public function paymentTypeGrouped(Collection $payments): void
@@ -355,7 +345,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $allocationNumber = $this->formatStringLength($allocationNumber, 18);
         $accountNumber = $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
 
-        $accountNumber = Str::padLeft($accountNumber, 10 , '0');
+        $accountNumber = Str::padLeft($accountNumber, 10, '0');
 
         $content = '';
 
@@ -487,7 +477,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
             $numberField = $fields->where('code', 'number')->first();
             $number = $numberField['value'];
 
-            $paymentNumber = Str::padLeft(Str::limit($number,6,''), 6,'0');
+            $paymentNumber = Str::padLeft(Str::limit($number, 6, ''), 6, '0');
         }
 
         $user = $this->getUser($payment['documents'][0]['user_id']);
@@ -520,7 +510,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $typeCard = $this->countryPaymentTypeFieldCartTypes->where('id', $typeCardField['value'])
             ->first();
 
-        $authorizationNumber = Str::padLeft(Str::limit($authorization['value'],6,''), 6,'0');
+        $authorizationNumber = Str::padLeft(Str::limit($authorization['value'], 6, ''), 6, '0');
         $loteNumber = $lot['value'] ?? '-';
         $cardIssuerCode = $typeCard['code'];
         $account = $typeCard['accountable_account'];
@@ -560,7 +550,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $user = $this->getUser($payment['documents'][0]['user_id']);
         $username = $user['username'];
 
-        $numberToSix = Str::padLeft(Str::limit($number,6,''), 6,'0');
+        $numberToSix = Str::padLeft(Str::limit($number, 6, ''), 6, '0');
         $itemText = $this->formatStringLength("{$location['location_code']}000{$this->getClosingDatetime($payment)->format('md')}$transactionType/$numberToSix/$username", 50);
 
         $accountRegister = $this->countryPaymentTypeFieldAccounts->where('id', $accountField['value'])->first();
