@@ -8,7 +8,7 @@ use Illuminate\Support\Carbon;
 abstract class GenerateInterfacesCommand extends Command
 {
 
-    public function getOptions(): array
+    public function getInterfaceOptions(?string $interfaceType = null): array
     {
         $from = $this->option('from');
         $to = $this->option('to');
@@ -24,6 +24,7 @@ abstract class GenerateInterfacesCommand extends Command
             'transaction_id' => \Str::orderedUuid(),
             'status' => 0,
             'to_sftp' => $toSftp,
+            'type' => $interfaceType,
         ];
     }
 }
