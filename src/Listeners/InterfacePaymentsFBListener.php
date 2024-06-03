@@ -3,7 +3,6 @@
 namespace Experteam\ApiLaravelInterface\Listeners;
 
 use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
-use Experteam\ApiLaravelInterface\Models\InterfaceFile;
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
@@ -22,7 +21,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     public array $closing = [];
     public array $countryPaymentTypes = [];
     public string $language = "ES";
-    public string $countryCode = "EC10";
     public string $cashAccount = "1261000080";
     public string $checkAccount = "1269000080";
     public string $tolerancePlusCostCenter = "8091850002";
@@ -41,44 +39,12 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     public function getPayments($event): ?Collection
     {
         $this->setLogLine("Start Interface process");
-        $this->interfaceRequestId = $event->interfaceRequest->id;
-        $this->toSftp = $event->interfaceRequest->to_sftp;
 
-        $start = is_null($event->interfaceRequest->to) ?
-            Carbon::yesterday()->startOfDay() :
-            Carbon::create($event->interfaceRequest->to);
-        $end = is_null($event->interfaceRequest->from) ?
-            Carbon::yesterday()->endOfDay() :
-            Carbon::create($event->interfaceRequest->from);
-
-        $this->setLogLine("Interface required from " . $start->format('Y-m-d') . " to " . $end->format('Y-m-d'));
-        $start = $start->addHours(4)
-            ->format('Y-m-d H:i:s');
-
-        $end = $end->addHours(4)
-            ->format('Y-m-d H:i:s');
-
-        $openingIds = $deposits = [];
-
-        $countryId = intval(json_decode(Redis::hget('catalogs.country.code', $this->country))->id);
-
-        $this->setLogLine("Get $this->country country id " . $countryId);
-
-        $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
-            ->get(config('experteam-crud.companies.company-countries.get_all'), [
-                'country_id' => $countryId,
-                'company@name' => $event->company ?? 'DHL'
-            ]);
-
-        $companyCountryId = $companyCountries['company_countries'][0]['id'];
-
-        $this->setLogLine("Get company country id " . $companyCountryId);
-
-        $this->companyCountryCurrency = $this->getCompanyCountryCurrencies($companyCountryId);
+        $this->init($event);
 
         $locations = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.locations.get_all'), [
-                'company_country_id' => $companyCountryId,
+                'company_country_id' => $this->companyCountryId,
                 'limit' => 1000
             ]);
 
@@ -91,8 +57,8 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $Closings = ApiClientFacade::setBaseUrl(config('experteam-crud.cash-operations.base_url'))
             ->get(config('experteam-crud.cash-operations.closing.get_all'), [
                 'locationIds' => $locationIds,
-                'startDateTime' => $start,
-                'endDateTime' => $end
+                'startDateTime' => $this->start,
+                'endDateTime' => $this->end
             ]);
 
         if (!isset($Closings['closings'])) {
@@ -105,6 +71,8 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
             $this->setLogLine("No closings from Api Cash Operations");
             return null;
         }
+
+        $openingIds = [];
 
         foreach ($Closings['closings'] as $closing) {
             $tmpOpeningIds = array_column($closing['openings'], 'id');
@@ -136,7 +104,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
-                'country_id' => $countryId,
+                'country_id' => $this->countryId,
             ]);
 
         foreach ($countryPaymentTypesResponse['country_payment_types'] as $countryPaymentType) {
@@ -571,51 +539,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     public function formatStringLength(string $string, int $length, bool $left = false): string
     {
         return str_pad(substr($string, 0, $length), $length, ' ', $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
-    }
-
-    public function getLocation($installationId)
-    {
-        $locationId = intval(json_decode(
-            Redis::hget('companies.installation', $installationId)
-        )?->location_id ?? 0);
-        return $this->locations->where('id', $locationId)->first();
-
-    }
-
-    public function getUser($userId)
-    {
-        return json_decode(Redis::hget('security.user', $userId), true);
-    }
-
-    public function saveAndSentInterface(string $fileContent, string $fileName, string $type): void
-    {
-        \Storage::put("$type/$fileName", $fileContent);
-
-        $interfaceFilesystem = $this->getInterfaceFilesystem();
-
-        if ($this->toSftp) {
-            [$transmissionOutput, $success] = InterfaceFacade::sendToInterface($fileName, $fileContent, $this->destFolder, $interfaceFilesystem);
-        } else {
-            $transmissionOutput = 'Do not sent interface';
-            $success = 1;
-        }
-
-        InterfaceFile::create([
-            'name' => $fileName,
-            'interface_request_id' => $this->interfaceRequestId,
-            'type' => $type,
-            'transmission_output' => $transmissionOutput,
-            'status' => $success ? 1 : 2,
-        ]);
-
-    }
-
-    public function getHeaderItems($document): array
-    {
-        $items = Collect($document['items']);
-        return array_values($items->where('model_origin', 'shipments')
-            ->where('model_type', 'Shipment')
-            ->all());
     }
 
     public function getDepositNumber($payment): string

@@ -15,12 +15,56 @@ class InterfacePaymentsBaseListener
 {
     protected ?\Illuminate\Filesystem\FilesystemAdapter $interfaceFilesystem = null;
     protected string $country = "EC";
+    public ?string $countryGmtOffset = "-05:00";
+    public string $countryCode = "EC10";
     protected Collection $locations;
     protected mixed $interfaceRequestId;
     protected mixed $toSftp;
     protected string $destFolder = "DO-FB01-IN/";
+    protected int $countryId = 0;
+    protected int $companyCountryId = 0;
+    protected string $start = "";
+    protected string $end = "";
 
-    private function getLocation($installationId)
+    protected function init($event)
+    {
+        $this->interfaceRequestId = $event->interfaceRequest->id;
+        $this->toSftp = $event->interfaceRequest->to_sftp;
+
+        $to = is_null($event->interfaceRequest->to) ?
+            Carbon::yesterday()->startOfDay() :
+            Carbon::create($event->interfaceRequest->to);
+        $from = is_null($event->interfaceRequest->from) ?
+            Carbon::yesterday()->endOfDay() :
+            Carbon::create($event->interfaceRequest->from);
+        $start = clone $from;
+        $end = clone $to;
+
+        $country = json_decode(Redis::hget('catalogs.country.code', $this->country), true);
+        $this->countryId = $country['id'];
+
+        $this->setLogLine("Get " . $this->country . " country id " . $this->countryId);
+
+        $this->countryGmtOffset = $country['timezone'];
+
+        $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
+        $this->start = $this->getDatetimeString($start);
+
+        $this->end = $this->getDatetimeString($end);
+
+        $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
+            ->get(config('experteam-crud.companies.company-countries.get_all'), [
+                'country_id' => $this->countryId,
+                'company@name' => $event->company ?? 'DHL'
+            ]);
+
+        $this->companyCountryId = $companyCountries['company_countries'][0]['id'];
+
+        $this->setLogLine("Get company country id " . $this->companyCountryId);
+
+    }
+
+    protected function getLocation($installationId)
     {
         $locationId = intval(json_decode(
             Redis::hget('companies.installation', $installationId)
@@ -29,12 +73,12 @@ class InterfacePaymentsBaseListener
 
     }
 
-    private function getUser($userId)
+    protected function getUser($userId)
     {
         return json_decode(Redis::hget('security.user', $userId), true);
     }
 
-    private function saveAndSentInterface(string $fileContent, string $fileName, string $type): void
+    protected function saveAndSentInterface(string $fileContent, string $fileName, string $type): void
     {
         \Storage::put("$type/$fileName", $fileContent);
 
@@ -57,11 +101,10 @@ class InterfacePaymentsBaseListener
 
     }
 
-    private function getHeaderItems($document): array
+    protected function getHeaderItems($document): array
     {
         $items = Collect($document['items']);
-        return array_values($items->where('model_origin', 'shipments')
-            ->where('model_type', 'Shipment')
+        return array_values($items->where('model_type', 'Shipment')
             ->all());
     }
 
@@ -95,5 +138,12 @@ class InterfacePaymentsBaseListener
             }
         }
         return Collect($companyCountryCurrencyList);
+    }
+
+    protected function getDatetimeString(Carbon $datetime): string
+    {
+        $spanArray = explode(':', $this->countryGmtOffset);
+        $minutes = ((int)($spanArray[0]) * 60) + ((int)($spanArray[1] ?? 0));
+        return $datetime->addMinutes($minutes)->format('Y-m-d H:i:s');
     }
 }
