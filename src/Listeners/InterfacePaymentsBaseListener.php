@@ -2,6 +2,7 @@
 
 namespace Experteam\ApiLaravelInterface\Listeners;
 
+use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Experteam\ApiLaravelInterface\Models\Config;
 use Experteam\ApiLaravelInterface\Models\InterfaceFile;
 use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
@@ -124,20 +125,6 @@ class InterfacePaymentsBaseListener
         }
 
         return $this->interfaceFilesystem;
-    }
-
-    public function getCompanyCountryCurrencies($companyCountryId): Collection
-    {
-        $companyCountryCurrencies = Redis::hgetall('companies.companyCountryCurrency');
-        $companyCountryCurrencyList = [];
-        foreach ($companyCountryCurrencies as $companyCountryCurrency) {
-            $companyCountryCurrency = json_decode($companyCountryCurrency, true);
-            if ($companyCountryCurrency['company_country_id'] == $companyCountryId) {
-                $companyCountryCurrency['currency'] = json_decode(Redis::hget('catalogs.currency', $companyCountryCurrency['currency_id']), true);
-                $companyCountryCurrencyList[] = $companyCountryCurrency;
-            }
-        }
-        return Collect($companyCountryCurrencyList);
     }
 
     protected function getDatetimeString(Carbon $datetime): string

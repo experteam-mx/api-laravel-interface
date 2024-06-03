@@ -2,8 +2,8 @@
 
 namespace Experteam\ApiLaravelInterface\Listeners;
 
-use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
+use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Carbon;
@@ -42,6 +42,8 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
         $this->init($event);
 
+        $this->getCompanyCountryCurrencies();
+
         $locations = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.locations.get_all'), [
                 'company_country_id' => $this->companyCountryId,
@@ -72,7 +74,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
             return null;
         }
 
-        $openingIds = [];
+        $openingIds = $deposits = [];
 
         foreach ($Closings['closings'] as $closing) {
             $tmpOpeningIds = array_column($closing['openings'], 'id');
@@ -573,6 +575,20 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     protected function getClosingDatetime($payment): Carbon
     {
         return Carbon::parse($this->getClosing($payment)['createdAt']) ?? Carbon::now();
+    }
+
+    public function getCompanyCountryCurrencies(): void
+    {
+        $companyCountryCurrencies = Redis::hgetall('companies.companyCountryCurrency');
+        $companyCountryCurrencyList = [];
+        foreach ($companyCountryCurrencies as $companyCountryCurrency) {
+            $companyCountryCurrency = json_decode($companyCountryCurrency, true);
+            if ($companyCountryCurrency['company_country_id'] == $this->companyCountryId) {
+                $companyCountryCurrency['currency'] = json_decode(Redis::hget('catalogs.currency', $companyCountryCurrency['currency_id']), true);
+                $companyCountryCurrencyList[] = $companyCountryCurrency;
+            }
+        }
+        $this->companyCountryCurrency = Collect($companyCountryCurrencyList);
     }
 
     private function getTotalAmountItems($document, $item): float
