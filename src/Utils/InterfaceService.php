@@ -3,6 +3,7 @@
 namespace Experteam\ApiLaravelInterface\Utils;
 
 use Carbon\Carbon;
+use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 
 class InterfaceService
 {
@@ -85,13 +86,14 @@ class InterfaceService
         $iteration = 500;
 
         do {
-            $paymentResponse = \ApiInvoices::getAllPayments([
-                'opening_id[in]' => implode(',', $openingIds),
-                'status' => 2,
-                'order' => ['id' => 'ASC'],
-                'limit' => $limit,
-                'offset' => $offset
-            ]);
+            $paymentResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+                ->get(config('experteam-crud.invoices.payments.get_all'), [
+                    'opening_id[in]' => implode(',', $openingIds),
+                    'status' => 2,
+                    'order' => ['id' => 'ASC'],
+                    'limit' => $limit,
+                    'offset' => $offset
+                ]);
 
             $cur_payments = $paymentResponse['payments'];
 
@@ -113,15 +115,16 @@ class InterfaceService
         $iteration = 500;
 
         do {
-            $documentResponse = \ApiInvoices::getAllDocumentsInterfaces([
-                'start_date' => $startDate,
-                'finish_date' => $finishDate,
-                'company_country_id' => $companyCountryId,
-                'is_billing' => $isBilling,
-                'order' => ['id' => 'ASC'],
-                'limit' => $limit,
-                'offset' => $offset
-            ]);
+            $documentResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+                ->get(config('experteam-crud.invoices.documents_interfaces.get_all'), [
+                    'start_date' => $startDate,
+                    'finish_date' => $finishDate,
+                    'company_country_id' => $companyCountryId,
+                    'is_billing' => $isBilling,
+                    'order' => ['id' => 'ASC'],
+                    'limit' => $limit,
+                    'offset' => $offset
+                ]);
 
             $cur_documents = $documentResponse['documents'];
             $documentsAll = array_merge($documentsAll, $cur_documents);
