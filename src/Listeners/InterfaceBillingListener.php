@@ -16,7 +16,7 @@ use Psy\Readline\Hoa\Console;
 class InterfaceBillingListener extends InterfacePaymentsBaseListener
 {
 
-    public function getDocuments($event): ?array
+    public function getDocuments($event): Collection
     {
 
         $this->setLogLine("Start Interface Billing process");
@@ -27,21 +27,20 @@ class InterfaceBillingListener extends InterfacePaymentsBaseListener
 
         $this->setLogLine("Document generated correctly");
 
-        return $this->getDataBilling($documents);
+        return $documents;
     }
 
-    public function getDataBilling(Collection $documents): array
+    public function processFile($event): array
     {
         $response = ['success' => true, 'message' => '', 'detail' => []];
 
-        if ($documents->count() == 0)
-            return ['success' => true, 'message' => 'No invoices to sent', 'detail' => []];
-
-        $fileContent = '';
-
-        $result = [];
-
         try {
+            $documents = $this->getDocuments($event);
+
+            if ($documents->count() == 0)
+                return ['success' => true, 'message' => 'No invoices to sent', 'detail' => []];
+
+            $result = [];
             foreach ($documents as $document) {
                 foreach ($this->getHeaderItems($document) as $item) {
                     $result[] = [
@@ -54,7 +53,7 @@ class InterfaceBillingListener extends InterfacePaymentsBaseListener
             }
 
             $this->setLogLine("Get general file");
-
+            $fileContent = '';
             foreach ($result as $item) {
                 $fileContent .= $this->formatBillingLine($item);
             }

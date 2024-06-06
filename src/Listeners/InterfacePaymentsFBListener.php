@@ -36,7 +36,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     public string $creditCardAccount_usd = "1263004014";
     public string $debitCardAccount_usd = "1263004014";
 
-    public function getPayments($event): ?Collection
+    public function getPayments($event): array
     {
         $this->setLogLine("Start Interface process");
 
@@ -66,12 +66,20 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         if (!isset($Closings['closings'])) {
             $this->setLogLine("Bad response from Api Cash Operations");
             $this->setLogLine(json_encode($Closings));
-            return null;
+            return [
+                'success' => false,
+                'payments' => Collect([]),
+                'message' => 'Bad response from Api Cash Operations'
+            ];
         }
 
         if (count($Closings['closings']) == 0) {
             $this->setLogLine("No closings from Api Cash Operations");
-            return null;
+            return [
+                'success' => true,
+                'payments' => Collect([]),
+                'message' => 'No closings from Api Cash Operations'
+            ];
         }
 
         $openingIds = $deposits = [];
@@ -101,7 +109,11 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
         if ($payments->count() == 0) {
             $this->setLogLine("No payments associated to given openings");
-            return null;
+            return [
+                'success' => true,
+                'payments' => Collect([]),
+                'message' => 'No payments associated to given openings'
+            ];
         }
 
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
@@ -136,11 +148,26 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $this->countryPaymentTypeFieldCartTypes = Collect($countryPaymentTypeFieldCardTypesResponse['country_payment_type_field_card_types']);
         $this->setLogLine("Get Country Payment Type Field Card Types");
 
-        return $payments;
+        return [
+            'success' => true,
+            'payments' => $payments,
+            'message' => ''
+        ];
     }
 
-    public function paymentTypeGrouped(Collection $payments): array
+    public function paymentTypeGrouped($event): array
     {
+        $paymentResponse = $this->getPayments($event);
+
+        if (!empty($paymentResponse['message']))
+            return [
+                'success' => $paymentResponse['success'],
+                'message' => $paymentResponse['message'],
+                'detail' => []
+            ];
+
+        $payments = $paymentResponse['payments'];
+
         $response = ['success' => true, 'message' => '', 'detail' => []];
         try {
 
@@ -209,8 +236,18 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         return $response;
     }
 
-    public function singleFile(Collection $payments): array
+    public function singleFile($event): array
     {
+        $paymentResponse = $this->getPayments($event);
+
+        if (!empty($paymentResponse['message']))
+            return [
+                'success' => $paymentResponse['success'],
+                'message' => $paymentResponse['message'],
+                'detail' => []
+            ];
+
+        $payments = $paymentResponse['payments'];
 
         $response = ['success' => true, 'message' => '', 'detail' => []];
         try {
