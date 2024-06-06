@@ -25,51 +25,51 @@ class InterfaceBillingListener extends InterfacePaymentsBaseListener
 
         $documents = InterfaceFacade::getDocumentsInvoices($this->start, $this->end, $this->companyCountryId, true);
 
-        if ($documents->count() == 0) {
-            $this->setLogLine("No finished Documents on the defined date");
-            return null;
-        }
-
         $this->setLogLine("Document generated correctly");
 
         return $this->getDataBilling($documents);
     }
 
-    public function getDataBilling(Collection $documents): ?array
+    public function getDataBilling(Collection $documents): array
     {
+        $response = ['success' => true, 'message' => '', 'detail' => []];
+
         if ($documents->count() == 0)
-            return null;
-        $result = [];
-        foreach ($documents as $document) {
-            foreach ($this->getHeaderItems($document) as $item) {
-                $result[] = [
-                    'account' => Str::limit($item['details']['header']['accountNumber'], 20, ''),
-                    'shipment_tracking_number' => Str::limit($item['details']['header']['awbNumber'], 20, ''),
-                    'invoice_number' => Str::limit($document['document_prefix'] . $document['document_number'] . $document['document_suffix'], 40, ''),
-                    'customer_identification_number' => Str::limit($document['customer_identification_number'], 40, ''),
-                ];
-            }
-        }
+            return ['success' => true, 'message' => 'No invoices to sent', 'detail' => []];
 
-        return $result;
-    }
-
-    public function singleFile($documents): void
-    {
         $fileContent = '';
 
-        foreach ($documents as $item) {
-            $fileContent .= $this->formatBillingLine($item);
+        $result = [];
+
+        try {
+            foreach ($documents as $document) {
+                foreach ($this->getHeaderItems($document) as $item) {
+                    $result[] = [
+                        'account' => Str::limit($item['details']['header']['accountNumber'], 20, ''),
+                        'shipment_tracking_number' => Str::limit($item['details']['header']['awbNumber'], 20, ''),
+                        'invoice_number' => Str::limit($document['document_prefix'] . $document['document_number'] . $document['document_suffix'], 40, ''),
+                        'customer_identification_number' => Str::limit($document['customer_identification_number'], 40, ''),
+                    ];
+                }
+            }
+
+            $this->setLogLine("Get general file");
+
+            foreach ($result as $item) {
+                $fileContent .= $this->formatBillingLine($item);
+            }
+
+            $this->setLogLine("Sending General file");
+            $this->saveAndSentInterface(
+                $fileContent,
+                $this->countryCode . "_PMNTREF_" . Carbon::now()->format('md') . "_CRA.txt",
+                'Billing'
+            );
+        } catch (\Exception $e) {
+            $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
         }
 
-        $this->setLogLine("Get general file");
-
-        $this->setLogLine("Sending General file");
-        $this->saveAndSentInterface(
-            $fileContent,
-            $this->countryCode . "_PMNTREF_" . Carbon::now()->format('md') . "_CRA.txt",
-            'Billing'
-        );
+        return $response;
     }
 
     public function formatBillingLine(array $result): string

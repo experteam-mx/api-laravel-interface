@@ -139,136 +139,153 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         return $payments;
     }
 
-    public function paymentTypeGrouped(Collection $payments): void
+    public function paymentTypeGrouped(Collection $payments): array
     {
+        $response = ['success' => true, 'message' => '', 'detail' => []];
+        try {
 
-        $cashFile = $this->cashAndCheckFile(
-            $payments->where('country_payment_type_id', $this->countryPaymentTypes['Cash'])
-        );
-
-        $this->setLogLine("Get cash and check file");
-
-        $creditDebitCardFile = $this->creditDebitCardFile(
-            $payments->whereIn('country_payment_type_id', [
-                $this->countryPaymentTypes['Credit Card'],
-                $this->countryPaymentTypes['Debit Card']
-            ])
-        );
-
-        $this->setLogLine("Get credit and debit card file");
-
-        $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
-            $payments->whereIn('country_payment_type_id', [
-                $this->countryPaymentTypes['Transfer']
-            ])
-        );
-
-        $this->setLogLine("Get electronic transfer and deposit file");
-
-        $actualDateTime = Carbon::now()->format('YmdHis');
-
-        if (!is_null($cashFile)) {
-            $this->setLogLine("Sending cash and check file");
-            $this->saveAndSentInterface(
-                $cashFile,
-                "FB01_{$this->country}_EYC_$actualDateTime.txt",
-                'Cash and Check'
+            $cashFile = $this->cashAndCheckFile(
+                $payments->where('country_payment_type_id', $this->countryPaymentTypes['Cash'])
             );
-        } else {
-            $this->setLogLine("No payments in Cash or Check");
+
+            $this->setLogLine("Get cash and check file");
+
+            $creditDebitCardFile = $this->creditDebitCardFile(
+                $payments->whereIn('country_payment_type_id', [
+                    $this->countryPaymentTypes['Credit Card'],
+                    $this->countryPaymentTypes['Debit Card']
+                ])
+            );
+
+            $this->setLogLine("Get credit and debit card file");
+
+            $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
+                $payments->whereIn('country_payment_type_id', [
+                    $this->countryPaymentTypes['Transfer']
+                ])
+            );
+
+            $this->setLogLine("Get electronic transfer and deposit file");
+
+            $actualDateTime = Carbon::now()->format('YmdHis');
+
+            if (!is_null($cashFile)) {
+                $this->setLogLine("Sending cash and check file");
+                $this->saveAndSentInterface(
+                    $cashFile,
+                    "FB01_{$this->country}_EYC_$actualDateTime.txt",
+                    'Cash and Check'
+                );
+            } else {
+                $this->setLogLine("No payments in Cash or Check");
+            }
+
+            if (!is_null($creditDebitCardFile)) {
+                $this->setLogLine("Sending Credit and Debit Card file");
+                $this->saveAndSentInterface(
+                    $creditDebitCardFile,
+                    "FB01_{$this->country}_TRJ_{$actualDateTime}.txt",
+                    'Credit and Debit Card'
+                );
+            } else {
+                $this->setLogLine("No payments in Credit or Debit Card");
+            }
+
+            if (!is_null($electronicTransferAndDepositFile)) {
+                $this->setLogLine("Sending Electronic Transfer and Deposit file");
+                $this->saveAndSentInterface(
+                    $electronicTransferAndDepositFile,
+                    "FB01_{$this->country}_TYD_{$actualDateTime}.txt",
+                    'Electronic Transfer and Deposit'
+                );
+            } else {
+                $this->setLogLine("No payments in Electronic Transfer or Deposit");
+            }
+
+        } catch (\Exception $e) {
+            $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
         }
 
-        if (!is_null($creditDebitCardFile)) {
-            $this->setLogLine("Sending Credit and Debit Card file");
-            $this->saveAndSentInterface(
-                $creditDebitCardFile,
-                "FB01_{$this->country}_TRJ_{$actualDateTime}.txt",
-                'Credit and Debit Card'
-            );
-        } else {
-            $this->setLogLine("No payments in Credit or Debit Card");
-        }
-
-        if (!is_null($electronicTransferAndDepositFile)) {
-            $this->setLogLine("Sending Electronic Transfer and Deposit file");
-            $this->saveAndSentInterface(
-                $electronicTransferAndDepositFile,
-                "FB01_{$this->country}_TYD_{$actualDateTime}.txt",
-                'Electronic Transfer and Deposit'
-            );
-        } else {
-            $this->setLogLine("No payments in Electronic Transfer or Deposit");
-        }
-
+        return $response;
     }
 
-    public function singleFile(Collection $payments): void
+    public function singleFile(Collection $payments): array
     {
-        $paymentsArr = $payments->toArray();
-        foreach ($paymentsArr as &$p) {
-            $p['document_id'] = $p['documents'][0]['id'];
+
+        $response = ['success' => true, 'message' => '', 'detail' => []];
+        try {
+
+            $paymentsArr = $payments->toArray();
+            foreach ($paymentsArr as &$p) {
+                $p['document_id'] = $p['documents'][0]['id'];
+            }
+
+            $payments = array_values(Collect($paymentsArr)->sortBy('document_id')->toArray());
+
+            $fileContent = '';
+            $countHeaders = $countLines = $hInlineCount = 0;
+
+            $this->setLogLine("Get general file");
+
+            foreach ($payments as $index => $payment) {
+                if (empty($location))
+                    $location = $this->getLocation($payment['installation_id']);
+
+                if (!isset($payments[$index - 1]) ||
+                    $payments[$index - 1]['document_id'] != $payment['document_id']) {
+                    $location = $this->getLocation($payment['installation_id']);
+                    $fileContent .= $this->headerLine($payment, 'COB COUNTER BR ', $location);
+                    $countHeaders++;
+                }
+
+                switch ($payment['country_payment_type_id']) {
+                    case $this->countryPaymentTypes['Transfer']:
+                        [$returnFileContent, $returnLine] = $this->electronicTransferAndDepositLine($payment, $location, $hInlineCount);
+                        $fileContent .= $returnFileContent;
+                        $hInlineCount = $returnLine;
+                        break;
+                    case $this->countryPaymentTypes['Cash']:
+                    case $this->countryPaymentTypes['Check']:
+                        [$returnFileContent, $returnLine] = $this->cashAndCheckLine($payment, $location, $hInlineCount);
+                        $fileContent .= $returnFileContent;
+                        $hInlineCount = $returnLine;
+                        break;
+                    case $this->countryPaymentTypes['Credit Card']:
+                    case $this->countryPaymentTypes['Debit Card']:
+                        [$returnFileContent, $returnLine] = $this->creditDebitCardLine($payment, $location, $hInlineCount);
+                        $fileContent .= $returnFileContent;
+                        $hInlineCount = $returnLine;
+                        break;
+                    default:
+                        dd('country_payment_type_id' .
+                            $payment['country_payment_type_id'] . ' not defined on interfaces');
+                }
+
+                if (!isset($payments[$index + 1]) ||
+                    $payments[$index + 1]['document_id'] != $payment['document_id']) {
+                    $hInlineCount++;
+                    $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
+                    $countLines += $hInlineCount;
+                    $hInlineCount = 0;
+                }
+            }
+
+            $fileContent = $this->setFileLastLine($fileContent, $countHeaders, $countLines);
+
+            $actualDateTime = Carbon::now()->format('YmdHis');
+
+            $this->setLogLine("Sending General file");
+            $this->saveAndSentInterface(
+                $fileContent,
+                "FB01_{$this->country}_$actualDateTime.txt",
+                'General'
+            );
+
+        } catch (\Exception $e) {
+            $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
         }
 
-        $payments = array_values(Collect($paymentsArr)->sortBy('document_id')->toArray());
-
-        $fileContent = '';
-        $countHeaders = $countLines = $hInlineCount = 0;
-
-        $this->setLogLine("Get general file");
-
-        foreach ($payments as $index => $payment) {
-            if (empty($location))
-                $location = $this->getLocation($payment['installation_id']);
-
-            if (!isset($payments[$index - 1]) ||
-                $payments[$index - 1]['document_id'] != $payment['document_id']) {
-                $location = $this->getLocation($payment['installation_id']);
-                $fileContent .= $this->headerLine($payment, 'COB COUNTER BR ', $location);
-                $countHeaders++;
-            }
-
-            switch ($payment['country_payment_type_id']) {
-                case $this->countryPaymentTypes['Transfer']:
-                    [$returnFileContent, $returnLine] = $this->electronicTransferAndDepositLine($payment, $location, $hInlineCount);
-                    $fileContent .= $returnFileContent;
-                    $hInlineCount = $returnLine;
-                    break;
-                case $this->countryPaymentTypes['Cash']:
-                case $this->countryPaymentTypes['Check']:
-                    [$returnFileContent, $returnLine] = $this->cashAndCheckLine($payment, $location, $hInlineCount);
-                    $fileContent .= $returnFileContent;
-                    $hInlineCount = $returnLine;
-                    break;
-                case $this->countryPaymentTypes['Credit Card']:
-                case $this->countryPaymentTypes['Debit Card']:
-                    [$returnFileContent, $returnLine] = $this->creditDebitCardLine($payment, $location, $hInlineCount);
-                    $fileContent .= $returnFileContent;
-                    $hInlineCount = $returnLine;
-                    break;
-                default:
-                    dd('country_payment_type_id' .
-                        $payment['country_payment_type_id'] . ' not defined on interfaces');
-            }
-
-            if (!isset($payments[$index + 1]) ||
-                $payments[$index + 1]['document_id'] != $payment['document_id']) {
-                $hInlineCount++;
-                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
-                $countLines += $hInlineCount;
-                $hInlineCount = 0;
-            }
-        }
-
-        $fileContent = $this->setFileLastLine($fileContent, $countHeaders, $countLines);
-
-        $actualDateTime = Carbon::now()->format('YmdHis');
-
-        $this->setLogLine("Sending General file");
-        $this->saveAndSentInterface(
-            $fileContent,
-            "FB01_{$this->country}_$actualDateTime.txt",
-            'General'
-        );
+        return $response;
     }
 
     public function headerLine($payment, string $headerString, array $location): string

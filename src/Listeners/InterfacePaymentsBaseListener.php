@@ -3,9 +3,10 @@
 namespace Experteam\ApiLaravelInterface\Listeners;
 
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
+use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
 use Experteam\ApiLaravelInterface\Models\Config;
 use Experteam\ApiLaravelInterface\Models\InterfaceFile;
-use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
+use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redis;
@@ -132,5 +133,23 @@ class InterfacePaymentsBaseListener
         $spanArray = explode(':', $this->countryGmtOffset);
         $minutes = ((int)($spanArray[0]) * 60) + ((int)($spanArray[1] ?? 0));
         return $datetime->addMinutes($minutes)->format('Y-m-d H:i:s');
+    }
+
+    public function finishInterfaceRequest(
+        InterfaceRequest $interfaceRequest,
+        int              $status,
+        string           $message,
+        array            $detail
+    ): void
+    {
+        if ($status == 1) {
+            $interfaceRequest->update(['status' => 1]);
+        } else {
+            $interfaceRequest->update([
+                'status' => $status,
+                'message' => $message,
+                'detail' => $detail,
+            ]);
+        }
     }
 }
