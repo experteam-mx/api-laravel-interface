@@ -27,6 +27,7 @@ class InterfacePaymentsBaseListener
     protected int $companyCountryId = 0;
     protected string $start = "";
     protected string $end = "";
+    protected bool $saveFileOnDB = false;
 
     protected function init($event)
     {
@@ -97,6 +98,7 @@ class InterfacePaymentsBaseListener
             'name' => $fileName,
             'interface_request_id' => $this->interfaceRequestId,
             'type' => $type,
+            'file_content' => $this->saveFileOnDB ? $fileContent : null,
             'transmission_output' => $transmissionOutput,
             'status' => $success ? 1 : 2,
         ]);

@@ -12,6 +12,8 @@ use Jenssegers\Mongodb\Query\Builder;
  * @property string $id
  * @property string|null $transaction_id
  * @property int $status
+ * @property string|null $message
+ * @property mixed|null $detail
  * @property Carbon|null $from
  * @property Carbon|null $to
  * @property bool|null $to_sftp
@@ -34,7 +36,9 @@ class InterfaceRequest extends BaseModel
         'status',
         'from',
         'to',
-        'to_sftp'
+        'to_sftp',
+        'message',
+        'detail',
     ];
 
     protected $casts = [

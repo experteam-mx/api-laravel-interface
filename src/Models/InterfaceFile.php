@@ -15,8 +15,7 @@ use Jenssegers\Mongodb\Query\Builder;
  * @property string|null $interface_request_id
  * @property string|null $transmission_output
  * @property int $status
- * @property string|null $message
- * @property mixed|null $detail
+ * @property string|null $file_content
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @method static Builder|InterfaceFile customPaginate()
@@ -37,8 +36,7 @@ class InterfaceFile extends BaseModel
         'interface_request_id',
         'transmission_output',
         'status',
-        'message',
-        'detail',
+        'file_content',
     ];
 
     protected $casts = [
