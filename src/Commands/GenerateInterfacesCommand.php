@@ -7,7 +7,7 @@ use Illuminate\Support\Carbon;
 
 abstract class GenerateInterfacesCommand extends Command
 {
-    public int $startDayOfMonth = 0;
+    public int $startDayOfMonth = 1;
 
     public function getInterfaceOptions(?string $interfaceType = null): false|array
     {
@@ -15,11 +15,18 @@ abstract class GenerateInterfacesCommand extends Command
         $to = $this->option('to');
         $toSftp = $this->option('toSftp');
 
-        if (is_null($from) && is_null($to) && $this->startDayOfMonth > Carbon::now()->format('d')) {
-            return false;
-        } elseif (is_null($from) && is_null($to) && $this->startDayOfMonth == Carbon::now()->format('d')) {
-            $from = Carbon::now()->startOfMonth()->startOfDay();
-            $to = Carbon::yesterday()->endOfDay();
+        if (is_null($from) && is_null($to) && Carbon::now()->format('d') != 1 && $this->startDayOfMonth != 1) {
+
+            if (Carbon::now()->format('d') < $this->startDayOfMonth) {
+                return false;
+            } elseif (Carbon::now()->format('d') == $this->startDayOfMonth) {
+                $from = Carbon::now()->startOfMonth()->startOfDay();
+                $to = Carbon::yesterday()->endOfDay();
+            } else {
+                $from = Carbon::yesterday()->startOfDay();
+                $to = Carbon::yesterday()->endOfDay();
+            }
+
         } else {
             $from = !is_null($from) ? Carbon::create($from) : Carbon::yesterday()->startOfDay();
             $to = !is_null($to) ? Carbon::create($to) : Carbon::yesterday()->endOfDay();
