@@ -32,7 +32,7 @@ class InterfacePaymentsBaseListener
     protected function init($event): bool
     {
         if (is_null($event->interfaceRequest)) {
-            $this->getOutput()->writeln("Interface not generated until configured day of this month");
+            $this->setLogLine("Interface not generated until configured day of this month");
             return false;
         }
         $this->interfaceRequestId = $event->interfaceRequest->id;
