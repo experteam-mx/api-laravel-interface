@@ -29,8 +29,12 @@ class InterfacePaymentsBaseListener
     protected string $end = "";
     protected bool $saveFileOnDB = false;
 
-    protected function init($event)
+    protected function init($event): bool
     {
+        if (is_null($event->interfaceRequest)) {
+            $this->getOutput()->writeln("Interface not generated until configured day of this month");
+            return false;
+        }
         $this->interfaceRequestId = $event->interfaceRequest->id;
         $this->toSftp = $event->interfaceRequest->to_sftp;
 
@@ -65,6 +69,7 @@ class InterfacePaymentsBaseListener
 
         $this->setLogLine("Get company country id " . $this->companyCountryId);
 
+        return true;
     }
 
     protected function getLocation($installationId)
@@ -139,12 +144,15 @@ class InterfacePaymentsBaseListener
     }
 
     public function finishInterfaceRequest(
-        InterfaceRequest $interfaceRequest,
+        ?InterfaceRequest $interfaceRequest,
         int              $status,
         string           $message,
         array            $detail
     ): void
     {
+        if (is_null($interfaceRequest))
+            return;
+
         if ($status == 1) {
             $interfaceRequest->update(['status' => 1]);
         } else {

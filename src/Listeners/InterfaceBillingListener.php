@@ -15,18 +15,35 @@ use Psy\Readline\Hoa\Console;
 class InterfaceBillingListener extends InterfacePaymentsBaseListener
 {
 
-    public function getDocuments($event): Collection
+    public function getDocuments($event): array
     {
 
         $this->setLogLine("Start Interface Billing process");
 
-        $this->init($event);
+        if (!$this->init($event)) {
+            return [
+                'success' => true,
+                'documents' => Collect([]),
+                'message' => 'Interface not generated until configured day of this month'
+            ];
+        }
 
         $documents = InterfaceFacade::getDocumentsInvoices($this->start, $this->end, $this->companyCountryId, true);
 
+        if ($documents->count() == 0)
+            return [
+                'success' => true,
+                'documents' => $documents,
+                'message' => 'No invoices to sent'
+            ];
+
         $this->setLogLine("Document generated correctly");
 
-        return $documents;
+        return [
+            'success' => true,
+            'documents' => $documents,
+            'message' => ''
+        ];
     }
 
     public function processFile($event): array
@@ -34,13 +51,17 @@ class InterfaceBillingListener extends InterfacePaymentsBaseListener
         $response = ['success' => true, 'message' => '', 'detail' => []];
 
         try {
-            $documents = $this->getDocuments($event);
+            $documentsResponse = $this->getDocuments($event);
 
-            if ($documents->count() == 0)
-                return ['success' => true, 'message' => 'No invoices to sent', 'detail' => []];
+            if (!empty($documentsResponse['message']))
+                return [
+                    'success' => $documentsResponse['success'],
+                    'message' => $documentsResponse['message'],
+                    'detail' => []
+                ];
 
             $result = [];
-            foreach ($documents as $document) {
+            foreach ($documentsResponse['documents'] as $document) {
                 foreach ($this->getHeaderItems($document) as $item) {
                     $result[] = [
                         'account' => Str::limit($item['details']['header']['accountNumber'], 20, ''),

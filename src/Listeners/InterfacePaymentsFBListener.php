@@ -40,7 +40,13 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     {
         $this->setLogLine("Start Interface process");
 
-        $this->init($event);
+        if (!$this->init($event)) {
+            return [
+                'success' => true,
+                'payments' => Collect([]),
+                'message' => 'Interface not generated until configured day of this month'
+            ];
+        }
 
         $this->getCompanyCountryCurrencies();
 
