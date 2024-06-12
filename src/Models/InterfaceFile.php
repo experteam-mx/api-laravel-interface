@@ -14,6 +14,7 @@ use Jenssegers\Mongodb\Query\Builder;
  * @property string|null $type
  * @property string|null $interface_request_id
  * @property string|null $transmission_output
+ * @property string|null $destination_folder
  * @property int $status
  * @property string|null $file_content
  * @property Carbon|null $created_at
@@ -36,6 +37,7 @@ class InterfaceFile extends BaseModel
         'interface_request_id',
         'transmission_output',
         'status',
+        'destination_folder',
         'file_content',
     ];
 

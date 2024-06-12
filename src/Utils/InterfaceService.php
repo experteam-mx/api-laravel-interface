@@ -106,7 +106,12 @@ class InterfaceService
         return Collect($paymentsAll);
     }
 
-    public function getDocumentsInvoices(string $startDate, string $finishDate, int $companyCountryId, bool $isBilling): \Illuminate\Support\Collection
+    public function getDocumentsInvoices(
+        string $startDate,
+        string $finishDate,
+        int    $companyCountryId,
+        bool   $isBilling
+    ): \Illuminate\Support\Collection
     {
 
         $documentsAll = [];

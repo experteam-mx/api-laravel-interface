@@ -2,6 +2,7 @@
 
 namespace Experteam\ApiLaravelInterface\Models;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
 use Jenssegers\Mongodb\Query\Builder;
@@ -19,6 +20,7 @@ use Jenssegers\Mongodb\Query\Builder;
  * @property bool|null $to_sftp
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read Collection<int, InterfaceFile> $interfaceFiles
  * @method static Builder|InterfaceRequest customPaginate()
  * @method static Builder|InterfaceRequest newModelQuery()
  * @method static Builder|InterfaceRequest newQuery()
@@ -44,4 +46,9 @@ class InterfaceRequest extends BaseModel
     protected $casts = [
         'status' => 'integer'
     ];
+
+    public function interfaceFiles()
+    {
+        return $this->hasMany(InterfaceFile::class);
+    }
 }

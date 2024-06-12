@@ -90,7 +90,7 @@ class InterfacePaymentsBaseListener
         if ($this->toSftp) {
             [$transmissionOutput, $success] = InterfaceFacade::sendToInterface($fileName, $fileContent, $this->destFolder, $interfaceFilesystem);
         } else {
-            $transmissionOutput = 'Do not sent interface';
+            $transmissionOutput = 'Interface not sent';
             $success = 1;
         }
 
@@ -99,6 +99,7 @@ class InterfacePaymentsBaseListener
             'interface_request_id' => $this->interfaceRequestId,
             'type' => $type,
             'file_content' => $this->saveFileOnDB ? $fileContent : null,
+            'destination_folder' => $this->destFolder,
             'transmission_output' => $transmissionOutput,
             'status' => $success ? 1 : 2,
         ]);
@@ -153,5 +154,26 @@ class InterfacePaymentsBaseListener
                 'detail' => $detail,
             ]);
         }
+    }
+
+    public function sentEmail(InterfaceRequest $interfaceRequest): void
+    {
+        if ($interfaceRequest->status == 1) {
+            $destinations = [];
+            $subject = "Interfaces SAP";
+            $body = "Error en las Interfaces SAP";
+        } else {
+            $destinations = [];
+            $subject = "Error en las Interfaces SAP";
+            $body = "Error en las Interfaces SAP";
+        }
+        ApiClientFacade::setBaseUrl(config('experteam-crud.services.base_url'))
+            ->post(config('experteam-crud.services.emails'), [
+                'destinations' => $destinations,
+                'subject' => $subject,
+                'template' => 'internal',
+                'body' => $body,
+                'attachments' => '$attachments'
+            ]);
     }
 }

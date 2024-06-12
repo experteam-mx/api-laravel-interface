@@ -2,7 +2,6 @@
 
 namespace Experteam\ApiLaravelInterface\Listeners;
 
-use App\Events\OpeningBillingsEvent;
 use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Illuminate\Contracts\Queue\ShouldQueue;
