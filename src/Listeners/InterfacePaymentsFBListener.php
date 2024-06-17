@@ -63,7 +63,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $this->setLogLine("Get location ids " . implode(', ', $locationIds));
 
         $Closings = ApiClientFacade::setBaseUrl(config('experteam-crud.cash-operations.base_url'))
-            ->get(config('experteam-crud.cash-operations.closing.get_all'), [
+            ->post(config('experteam-crud.cash-operations.closing.get_all'), [
                 'locationIds' => $locationIds,
                 'startDateTime' => $this->start,
                 'endDateTime' => $this->end
@@ -163,20 +163,20 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
     public function paymentTypeGrouped($event): array
     {
-        $paymentResponse = $this->getPayments($event);
-
-        if (!empty($paymentResponse['message']))
-            return [
-                'success' => $paymentResponse['success'],
-                'message' => $paymentResponse['message'],
-                'detail' => []
-            ];
-
-        $payments = $paymentResponse['payments'];
-
-        $response = ['success' => true, 'message' => '', 'detail' => []];
         try {
 
+            $paymentResponse = $this->getPayments($event);
+
+            if (!empty($paymentResponse['message']))
+                return [
+                    'success' => $paymentResponse['success'],
+                    'message' => $paymentResponse['message'],
+                    'detail' => []
+                ];
+
+            $payments = $paymentResponse['payments'];
+
+            $response = ['success' => true, 'message' => '', 'detail' => []];
             $cashFile = $this->cashAndCheckFile(
                 $payments->where('country_payment_type_id', $this->countryPaymentTypes['Cash'])
             );
@@ -244,19 +244,18 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
     public function singleFile($event): array
     {
-        $paymentResponse = $this->getPayments($event);
-
-        if (!empty($paymentResponse['message']))
-            return [
-                'success' => $paymentResponse['success'],
-                'message' => $paymentResponse['message'],
-                'detail' => []
-            ];
-
-        $payments = $paymentResponse['payments'];
-
         $response = ['success' => true, 'message' => '', 'detail' => []];
         try {
+            $paymentResponse = $this->getPayments($event);
+
+            if (!empty($paymentResponse['message']))
+                return [
+                    'success' => $paymentResponse['success'],
+                    'message' => $paymentResponse['message'],
+                    'detail' => []
+                ];
+
+            $payments = $paymentResponse['payments'];
 
             $paymentsArr = $payments->toArray();
             foreach ($paymentsArr as &$p) {
