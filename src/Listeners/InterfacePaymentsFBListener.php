@@ -178,7 +178,10 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
             $response = ['success' => true, 'message' => '', 'detail' => []];
             $cashFile = $this->cashAndCheckFile(
-                $payments->where('country_payment_type_id', $this->countryPaymentTypes['Cash'])
+                $payments->whereIn('country_payment_type_id', [
+                    $this->countryPaymentTypes['Cash'],
+                    $this->countryPaymentTypes['Check'],
+                ])
             );
 
             $this->setLogLine("Get cash and check file");
@@ -194,7 +197,8 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
             $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
                 $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Transfer']
+                    $this->countryPaymentTypes['Transfer'],
+                    $this->countryPaymentTypes['Deposit'],
                 ])
             );
 
