@@ -70,7 +70,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
             ]);
 
         if (!isset($Closings['closings'])) {
-            $this->setLogLine("Bad response from Api Cash Operations");
             $this->setLogLine(json_encode($Closings));
             return [
                 'success' => false,
@@ -80,7 +79,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         }
 
         if (count($Closings['closings']) == 0) {
-            $this->setLogLine("No closings from Api Cash Operations");
             return [
                 'success' => true,
                 'payments' => Collect([]),
@@ -114,7 +112,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $payments = InterfaceFacade::getPaymentsInvoices($openingIds);
 
         if ($payments->count() == 0) {
-            $this->setLogLine("No payments associated to given openings");
             return [
                 'success' => true,
                 'payments' => Collect([]),
@@ -157,7 +154,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         return [
             'success' => true,
             'payments' => $payments,
-            'message' => ''
+            'message' => null
         ];
     }
 
@@ -167,20 +164,22 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
             $paymentResponse = $this->getPayments($event);
 
-            if (!empty($paymentResponse['message']))
+            if (is_null($paymentResponse['message'])) {
+                $this->setLogLine($paymentResponse['message']);
                 return [
                     'success' => $paymentResponse['success'],
                     'message' => $paymentResponse['message'],
                     'detail' => []
                 ];
+            }
 
             $payments = $paymentResponse['payments'];
 
             $response = ['success' => true, 'message' => '', 'detail' => []];
             $cashFile = $this->cashAndCheckFile(
                 $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Cash'],
-                    $this->countryPaymentTypes['Check'],
+                    $this->countryPaymentTypes['Cash'] ?? 0,
+                    $this->countryPaymentTypes['Check'] ?? 0,
                 ])
             );
 
@@ -188,8 +187,8 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
             $creditDebitCardFile = $this->creditDebitCardFile(
                 $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Credit Card'],
-                    $this->countryPaymentTypes['Debit Card']
+                    $this->countryPaymentTypes['Credit Card'] ?? 0,
+                    $this->countryPaymentTypes['Debit Card'] ?? 0
                 ])
             );
 
@@ -197,8 +196,8 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
             $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
                 $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Transfer'],
-                    $this->countryPaymentTypes['Deposit'],
+                    $this->countryPaymentTypes['Transfer'] ?? 0,
+                    $this->countryPaymentTypes['Deposit'] ?? 0,
                 ])
             );
 
@@ -240,6 +239,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
             }
 
         } catch (\Exception $e) {
+            $this->setLogLine("Error generating files: " . $e->getMessage());
             $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
         }
 
