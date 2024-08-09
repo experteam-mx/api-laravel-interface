@@ -16,7 +16,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 {
     public ?Collection $countryPaymentTypeFieldAccounts = null;
     public ?Collection $countryPaymentTypeFieldCartTypes = null;
-    public ?Collection $companyCountryCurrency = null;
+    public ?Collection $countryReferenceCurrency = null;
     public Collection $deposits;
     public array $closing = [];
     public array $countryPaymentTypes = [];
@@ -29,12 +29,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
     public string $toleranceMinusAccount = "3219400030";
     public string $cashAccount_usd = "1261000080";
     public string $checkAccount_usd = "1261000080";
-    public string $tolerancePlusCostCenter_usd = "8091850002";
-    public string $toleranceMinusCostCenter_usd = "8091850002";
-    public string $tolerancePlusAccount_usd = "3626020010";
-    public string $toleranceMinusAccount_usd = "3219400030";
-    public string $creditCardAccount_usd = "1263004014";
-    public string $debitCardAccount_usd = "1263004014";
 
     public function getPayments($event): array
     {
@@ -48,7 +42,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
             ];
         }
 
-        $this->getCompanyCountryCurrencies();
+        $this->getCountryReferenceCurrencies();
 
         $locations = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.locations.get_all'), [
@@ -340,13 +334,13 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
         $invoiceNumber = $this->getInvoiceNumber($payment);
 
-        $companyCountryCurrency = $this->companyCountryCurrency
-            ->where('id', $payment['company_country_currency_id'])
+        $countryReferenceCurrency = $this->countryReferenceCurrency
+            ->where('id', $payment['country_reference_currency_id'])
             ->first();
 
-        return "H  " . $this->countryCode . "     DZ" . $this->getClosingDatetime($payment)->format('d.m.Y') . Carbon::now()->format('d.m.Y') .
+        return "H  $this->countryCode     DZ" . $this->getClosingDatetime($payment)->format('d.m.Y') . Carbon::now()->format('d.m.Y') .
             "{$headerString}{$location['location_code']} " . $this->getClosingDatetime($payment)->format('d-m') . " " . //character 35 to 59
-            "{$companyCountryCurrency['currency']['code']}  " . $this->formatStringLength(number_format($payment['exchange'], 4, '.', ''), 9, true) .
+            "{$countryReferenceCurrency['currency']['code']}  " . $this->formatStringLength(number_format($payment['exchange'], 4, '.', ''), 9, true) .
             $this->formatStringLength($invoiceNumber, 16) . " " . PHP_EOL; //character 60 to 109
     }
 
@@ -640,18 +634,18 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         return Carbon::parse($this->getClosing($payment)['createdAt']) ?? Carbon::now();
     }
 
-    public function getCompanyCountryCurrencies(): void
+    public function getCountryReferenceCurrencies(): void
     {
-        $companyCountryCurrencies = Redis::hgetall('companies.companyCountryCurrency');
-        $companyCountryCurrencyList = [];
-        foreach ($companyCountryCurrencies as $companyCountryCurrency) {
-            $companyCountryCurrency = json_decode($companyCountryCurrency, true);
-            if ($companyCountryCurrency['company_country_id'] == $this->companyCountryId) {
-                $companyCountryCurrency['currency'] = json_decode(Redis::hget('catalogs.currency', $companyCountryCurrency['currency_id']), true);
-                $companyCountryCurrencyList[] = $companyCountryCurrency;
+        $countryReferenceCurrencies = Redis::hgetall('companies.countryReferenceCurrency');
+        $countryReferenceCurrencyList = [];
+        foreach ($countryReferenceCurrencies as $countryReferenceCurrency) {
+            $countryReferenceCurrency = json_decode($countryReferenceCurrency, true);
+            if ($countryReferenceCurrency['country_id'] == $this->countryId) {
+                $countryReferenceCurrency['currency'] = json_decode(Redis::hget('catalogs.currency', $countryReferenceCurrency['currency_id']), true);
+                $countryReferenceCurrencyList[] = $countryReferenceCurrency;
             }
         }
-        $this->companyCountryCurrency = Collect($companyCountryCurrencyList);
+        $this->countryReferenceCurrency = Collect($countryReferenceCurrencyList);
     }
 
     private function getTotalAmountItems($document, $item): float
