@@ -118,7 +118,7 @@ class InterfacePaymentsBaseListener
             ->all());
     }
 
-    protected function setLogLine(string $message): void
+    protected function setLogLine(?string $message): void
     {
         Console::getOutput()->writeLine($message);
     }

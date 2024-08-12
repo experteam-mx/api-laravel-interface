@@ -158,7 +158,7 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
 
             $paymentResponse = $this->getPayments($event);
 
-            if (is_null($paymentResponse['message'])) {
+            if (!is_null($paymentResponse['message'])) {
                 $this->setLogLine($paymentResponse['message']);
                 return [
                     'success' => $paymentResponse['success'],
