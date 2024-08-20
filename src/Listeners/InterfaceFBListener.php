@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Psy\Readline\Hoa\Console;
 
-class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
+class InterfaceFBListener extends InterfaceBaseListener
 {
     public ?Collection $countryPaymentTypeFieldAccounts = null;
     public ?Collection $countryPaymentTypeFieldCartTypes = null;
@@ -593,11 +593,6 @@ class InterfacePaymentsFBListener extends InterfacePaymentsBaseListener
         $countHeaders = sprintf("%010d", $countHeaders);
         $countLines = sprintf("%010d", $countLines);
         return $fileContent . "TOT{$countHeaders}{$countLines}" . PHP_EOL;
-    }
-
-    public function formatStringLength(string $string, int $length, bool $left = false): string
-    {
-        return str_pad(substr($string, 0, $length), $length, ' ', $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
     }
 
     public function getDepositNumber($payment): string

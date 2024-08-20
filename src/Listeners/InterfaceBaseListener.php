@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
 use Psy\Readline\Hoa\Console;
 
-class InterfacePaymentsBaseListener
+class InterfaceBaseListener
 {
     protected ?\Illuminate\Filesystem\FilesystemAdapter $interfaceFilesystem = null;
     protected string $country = "EC";
@@ -162,6 +162,11 @@ class InterfacePaymentsBaseListener
                 'detail' => $detail,
             ]);
         }
+    }
+
+    public function formatStringLength(string $string, int $length, bool $left = false): string
+    {
+        return str_pad(substr($string, 0, $length), $length, ' ', $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
     }
 
     public function sentEmail(InterfaceRequest $interfaceRequest): void
