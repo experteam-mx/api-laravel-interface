@@ -538,7 +538,7 @@ class InterfaceFBListener extends InterfaceBaseListener
             ->first();
 
         $authorizationNumber = Str::padLeft(Str::limit($authorization['value'], 6, ''), 6, '0');
-        $loteNumber = $lot['value'] ?? '-';
+        $loteNumber = $lot['value'] ?? $authorization['value'];
         $cardIssuerCode = $typeCard['code'];
         $account = $typeCard['accountable_account'];
 
