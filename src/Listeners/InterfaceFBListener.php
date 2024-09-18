@@ -504,7 +504,7 @@ class InterfaceFBListener extends InterfaceBaseListener
             $numberField = $fields->where('code', 'number')->first();
             $number = $numberField['value'];
 
-            $paymentNumber = Str::padLeft(Str::limit($number, 6, ''), 6, '0');
+            $paymentNumber = Str::padLeft(Str::reverse(Str::limit(Str::reverse($number), 6, '')), 6, '0');
         }
 
         $user = $this->getUser($payment['documents'][0]['user_id']);
@@ -537,8 +537,8 @@ class InterfaceFBListener extends InterfaceBaseListener
         $typeCard = $this->countryPaymentTypeFieldCartTypes->where('id', $typeCardField['value'])
             ->first();
 
-        $authorizationNumber = Str::padLeft(Str::limit($authorization['value'], 6, ''), 6, '0');
-        $loteNumber = $lot['value'] ?? $authorization['value'];
+        $authorizationNumber = Str::padLeft(Str::reverse(Str::limit(Str::reverse($authorization['value'] ?? '000000'), 6, '')), 6, '0');
+        $loteNumber = Str::reverse(Str::limit(Str::reverse($lot['value'] ?? $authorization['value'] ?? '-'), 18, ''));
         $cardIssuerCode = $typeCard['code'];
         $account = $typeCard['accountable_account'];
 
@@ -562,8 +562,8 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $numberField = 'reference';
                 break;
             default:
-                $transactionType = '';
-                $numberField = '';
+                $transactionType = 'D';
+                $numberField = 'reference';
         }
 
         $fields = Collect($payment['details']);
