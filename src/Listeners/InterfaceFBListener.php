@@ -573,11 +573,11 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $number = $numberRegister['value'];
 
-        $allocationNumber = $this->formatStringLength($number, 18);
+        $allocationNumber = $this->formatStringLength(Str::reverse(Str::limit(Str::reverse($number), 18,'')), 18);
         $user = $this->getUser($payment['documents'][0]['user_id']);
         $username = $user['username'];
 
-        $numberToSix = Str::padLeft(Str::limit($number, 6, ''), 6, '0');
+        $numberToSix = Str::padLeft(Str::reverse(Str::limit(Str::reverse($number), 6,'')), 6, '0');
         $itemText = $this->formatStringLength("{$location['location_code']}000{$this->getClosingDatetime($payment)->format('md')}$transactionType/$numberToSix/$username", 50);
 
         $accountRegister = $this->countryPaymentTypeFieldAccounts->where('id', $accountField['value'])->first();
