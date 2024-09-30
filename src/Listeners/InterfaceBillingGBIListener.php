@@ -188,7 +188,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
     protected function getRegion($regionId): array
     {
         if (empty($this->regions[$regionId])) {
-            $this->installations[$regionId] = json_decode(Redis::hget('catalogs.region', $regionId), true);
+            $this->regions[$regionId] = json_decode(Redis::hget('catalogs.region', $regionId), true);
         }
         return $this->regions[$regionId];
     }
@@ -277,7 +277,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
     {
         $items = [];
         foreach ($document['items'] as $item) {
-            if ($item['details']['relation'] == $headerItem['details']['header']['awbNumber'])
+            if (($item['details']['relation'] ?? '') == $headerItem['details']['header']['awbNumber'])
                 $items[] = $item;
         }
         return $items;
