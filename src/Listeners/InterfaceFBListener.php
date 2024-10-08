@@ -29,6 +29,9 @@ class InterfaceFBListener extends InterfaceBaseListener
     public string $toleranceMinusAccount = "3219400030";
     public string $cashAccount_usd = "1261000080";
     public string $checkAccount_usd = "1261000080";
+    public array $cashAndCheckPaymentTypes = ['Cash', 'Check'];
+    public array $creditDebitCardPaymentTypes = ['Credit Card', 'Debit Card'];
+    public array $electronicTransferAndDepositPaymentTypes = ['Transfer', 'Deposit'];
 
     public function getPayments($event): array
     {
@@ -126,9 +129,10 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $countryPaymentTypeFieldAccountsResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.payment_type_field_accounts.get_all'), [
-                'country_payment_type_field@country_payment_type_id' => ['in' => [
-                    $this->countryPaymentTypes['Transfer'],
-                ]],
+                'country_payment_type_field@country_payment_type_id' => [
+                    'in' => implode(',',array_values($this->countryPaymentTypes))
+                ],
+                'limit' => 500,
             ]);
 
         $this->countryPaymentTypeFieldAccounts = Collect($countryPaymentTypeFieldAccountsResponse['country_payment_type_field_accounts']);
@@ -136,10 +140,10 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $countryPaymentTypeFieldCardTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.payment_type_field_card_types.get_all'), [
-                'country_payment_type_field@country_payment_type_id' => ['in' => [
-                    $this->countryPaymentTypes['Credit Card'],
-                    $this->countryPaymentTypes['Debit Card'],
-                ]],
+                'country_payment_type_field@country_payment_type_id' => [
+                    'in' => implode(',', array_values($this->countryPaymentTypes))
+                ],
+                'limit' => 500,
             ]);
 
         $this->countryPaymentTypeFieldCartTypes = Collect($countryPaymentTypeFieldCardTypesResponse['country_payment_type_field_card_types']);
@@ -171,28 +175,25 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             $response = ['success' => true, 'message' => '', 'detail' => []];
             $cashFile = $this->cashAndCheckFile(
-                $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Cash'] ?? 0,
-                    $this->countryPaymentTypes['Check'] ?? 0,
-                ])
+                $payments->whereIn('country_payment_type_id',
+                    $this->getPaymentTypeIds($this->cashAndCheckPaymentTypes)
+                )
             );
 
             $this->setLogLine("Get cash and check file");
 
             $creditDebitCardFile = $this->creditDebitCardFile(
-                $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Credit Card'] ?? 0,
-                    $this->countryPaymentTypes['Debit Card'] ?? 0
-                ])
+                $payments->whereIn('country_payment_type_id',
+                    $this->getPaymentTypeIds($this->creditDebitCardPaymentTypes)
+                )
             );
 
             $this->setLogLine("Get credit and debit card file");
 
             $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
-                $payments->whereIn('country_payment_type_id', [
-                    $this->countryPaymentTypes['Transfer'] ?? 0,
-                    $this->countryPaymentTypes['Deposit'] ?? 0,
-                ])
+                $payments->whereIn('country_payment_type_id',
+                    $this->getPaymentTypeIds($this->electronicTransferAndDepositPaymentTypes)
+                )
             );
 
             $this->setLogLine("Get electronic transfer and deposit file");
@@ -255,62 +256,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             $payments = $paymentResponse['payments'];
 
-            $paymentsArr = $payments->toArray();
-            foreach ($paymentsArr as &$p) {
-                $p['document_id'] = $p['documents'][0]['id'];
-            }
-
-            $payments = array_values(Collect($paymentsArr)->sortBy('document_id')->toArray());
-
-            $fileContent = '';
-            $countHeaders = $countLines = $hInlineCount = 0;
-
-            $this->setLogLine("Get general file");
-
-            foreach ($payments as $index => $payment) {
-                if (empty($location))
-                    $location = $this->getLocation($payment['installation_id']);
-
-                if (!isset($payments[$index - 1]) ||
-                    $payments[$index - 1]['document_id'] != $payment['document_id']) {
-                    $location = $this->getLocation($payment['installation_id']);
-                    $fileContent .= $this->headerLine($payment, 'COB COUNTER BR ', $location);
-                    $countHeaders++;
-                }
-
-                switch ($payment['country_payment_type_id']) {
-                    case $this->countryPaymentTypes['Transfer']:
-                        [$returnFileContent, $returnLine] = $this->electronicTransferAndDepositLine($payment, $location, $hInlineCount);
-                        $fileContent .= $returnFileContent;
-                        $hInlineCount = $returnLine;
-                        break;
-                    case $this->countryPaymentTypes['Cash']:
-                    case $this->countryPaymentTypes['Check']:
-                        [$returnFileContent, $returnLine] = $this->cashAndCheckLine($payment, $location, $hInlineCount);
-                        $fileContent .= $returnFileContent;
-                        $hInlineCount = $returnLine;
-                        break;
-                    case $this->countryPaymentTypes['Credit Card']:
-                    case $this->countryPaymentTypes['Debit Card']:
-                        [$returnFileContent, $returnLine] = $this->creditDebitCardLine($payment, $location, $hInlineCount);
-                        $fileContent .= $returnFileContent;
-                        $hInlineCount = $returnLine;
-                        break;
-                    default:
-                        dd('country_payment_type_id' .
-                            $payment['country_payment_type_id'] . ' not defined on interfaces');
-                }
-
-                if (!isset($payments[$index + 1]) ||
-                    $payments[$index + 1]['document_id'] != $payment['document_id']) {
-                    $hInlineCount++;
-                    $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
-                    $countLines += $hInlineCount;
-                    $hInlineCount = 0;
-                }
-            }
-
-            $fileContent = $this->setFileLastLine($fileContent, $countHeaders, $countLines);
+            $fileContent = $this->getSingleFileContent($payments);
 
             $actualDateTime = Carbon::now()->format('YmdHis');
 
@@ -326,6 +272,74 @@ class InterfaceFBListener extends InterfaceBaseListener
         }
 
         return $response;
+    }
+
+    public function getSingleFileContent($payments): string
+    {
+        $paymentsArr = $payments->toArray();
+        foreach ($paymentsArr as &$p) {
+            $p['document_id'] = $p['documents'][0]['id'];
+        }
+
+        $payments = array_values(Collect($paymentsArr)->sortBy('document_id')->toArray());
+
+        $fileContent = '';
+        $countHeaders = $countLines = $hInlineCount = 0;
+
+        $this->setLogLine("Get general file");
+
+        foreach ($payments as $index => $payment) {
+            if (empty($location))
+                $location = $this->getLocation($payment['installation_id']);
+
+            if (!isset($payments[$index - 1]) ||
+                $payments[$index - 1]['document_id'] != $payment['document_id']) {
+                $location = $this->getLocation($payment['installation_id']);
+                $fileContent .= $this->headerLine($payment, 'COB COUNTER BR ', $location);
+                $countHeaders++;
+            }
+
+            switch (true) {
+                case (in_array($payment['country_payment_type_id'], $this->getPaymentTypeIds($this->electronicTransferAndDepositPaymentTypes))):
+                    [$returnFileContent, $returnLine] = $this->electronicTransferAndDepositLine($payment, $location, $hInlineCount);
+                    $fileContent .= $returnFileContent;
+                    $hInlineCount = $returnLine;
+                    break;
+                case (in_array($payment['country_payment_type_id'], $this->getPaymentTypeIds($this->cashAndCheckPaymentTypes))):
+                    [$returnFileContent, $returnLine] = $this->cashAndCheckLine($payment, $location, $hInlineCount);
+                    $fileContent .= $returnFileContent;
+                    $hInlineCount = $returnLine;
+                    break;
+                case (in_array($payment['country_payment_type_id'], $this->getPaymentTypeIds($this->creditDebitCardPaymentTypes))):
+                    [$returnFileContent, $returnLine] = $this->creditDebitCardLine($payment, $location, $hInlineCount);
+                    $fileContent .= $returnFileContent;
+                    $hInlineCount = $returnLine;
+                    break;
+                default:
+                    dd('country_payment_type_id' .
+                        $payment['country_payment_type_id'] . ' not defined on interfaces');
+            }
+
+            if (!isset($payments[$index + 1]) ||
+                $payments[$index + 1]['document_id'] != $payment['document_id']) {
+                $hInlineCount++;
+                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
+                $countLines += $hInlineCount;
+                $hInlineCount = 0;
+            }
+        }
+
+        return $this->setFileLastLine($fileContent, $countHeaders, $countLines);
+    }
+
+    public function getPaymentTypeIds(array $array): array
+    {
+        $return = [];
+        foreach ($this->countryPaymentTypes as $key => $id) {
+            if (in_array($key, $array))
+                $return[] = $id;
+        }
+        return $return;
     }
 
     public function headerLine($payment, string $headerString, array $location): string
