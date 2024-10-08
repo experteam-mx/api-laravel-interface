@@ -28,6 +28,9 @@ class InterfaceBaseListener
     protected string $start = "";
     protected string $end = "";
     protected bool $saveFileOnDB = false;
+    protected bool $sentEmail = false;
+    protected array $emailsOnFail = ['crasupport@experteam.com.ec'];
+    protected array $emailsOnSuccess = ['crasupport@experteam.com.ec'];
 
     protected function init($event): bool
     {
@@ -145,9 +148,9 @@ class InterfaceBaseListener
 
     public function finishInterfaceRequest(
         ?InterfaceRequest $interfaceRequest,
-        int              $status,
-        string           $message,
-        array            $detail
+        int               $status,
+        string            $message,
+        array             $detail
     ): void
     {
         if (is_null($interfaceRequest))
@@ -162,6 +165,9 @@ class InterfaceBaseListener
                 'detail' => $detail,
             ]);
         }
+
+        if ($this->sentEmail)
+            $this->sentEmail($interfaceRequest);
     }
 
     public function formatStringLength(string $string, int $length, bool $left = false): string
@@ -171,14 +177,30 @@ class InterfaceBaseListener
 
     public function sentEmail(InterfaceRequest $interfaceRequest): void
     {
+        $from = Carbon::parse($interfaceRequest->from)->format('Y-m-d');
+        $to = Carbon::parse($interfaceRequest->to)->format('Y-m-d');
+
         if ($interfaceRequest->status == 1) {
-            $destinations = [];
-            $subject = "Interfaces SAP";
-            $body = "Error en las Interfaces SAP";
+            $subject = "Interfaces SAP $this->country";
+            $body = "Interfaces SAP $this->country generadas desde $from hasta $to";
+            $attachments = $this->getEmailFiles($interfaceRequest);
+            $destinations = $this->formatEmails($this->emailsOnSuccess);
         } else {
-            $destinations = [];
-            $subject = "Error en las Interfaces SAP";
-            $body = "Error en las Interfaces SAP";
+            $subject = "Error en las Interfaces SAP $this->country";
+            $body = "Error en las Interfaces SAP $this->country generadas desde $from hasta $to:" .
+                " $interfaceRequest->message";
+
+            $interfaceRequest->refresh();
+
+            $attachments = [
+                [
+                    'content' => base64_encode(json_encode($interfaceRequest->detail)),
+                    'name' => 'errorDetail.json',
+                    'contentType' => 'application/json',
+                    'embed' => false,
+                ]
+            ];
+            $destinations = $this->formatEmails($this->emailsOnFail);
         }
         ApiClientFacade::setBaseUrl(config('experteam-crud.services.base_url'))
             ->post(config('experteam-crud.services.emails'), [
@@ -186,7 +208,43 @@ class InterfaceBaseListener
                 'subject' => $subject,
                 'template' => 'internal',
                 'body' => $body,
-                'attachments' => '$attachments'
+                'attachments' => $attachments
             ]);
+    }
+
+    public function getEmailFiles(InterfaceRequest $interfaceRequest): array
+    {
+        $attachments = [];
+
+        /** @var InterfaceFile $interfaceFile */
+        foreach ($interfaceRequest->interfaceFiles()->get() as $interfaceFile) {
+            $attachments[] = [
+                'content' => base64_encode($interfaceFile->file_content),
+                'name' => $interfaceFile->name,
+                'contentType' => 'text/plain',
+                'embed' => false,
+            ];
+
+            $attachments[] = [
+                'content' => base64_encode($interfaceFile->transmission_output),
+                'name' => $interfaceFile->name . '.log',
+                'contentType' => 'text/plain',
+                'embed' => false,
+            ];
+        }
+
+        return $attachments;
+    }
+
+    public function formatEmails(array $emails): array
+    {
+        $destinations = [];
+        foreach ($emails as $email) {
+            $destinations[] = [
+                'address' => $email,
+                'name' => ''
+            ];
+        }
+        return $destinations;
     }
 }
