@@ -159,6 +159,7 @@ class InterfaceBaseListener
         if ($status == 1) {
             $interfaceRequest->update(['status' => 1]);
         } else {
+            $this->setLogLine("Error: $message");
             $interfaceRequest->update([
                 'status' => $status,
                 'message' => $message,

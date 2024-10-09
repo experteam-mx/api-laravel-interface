@@ -86,7 +86,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             5);
 
         $piecesCount = $this->formatStringLength(
-            number_format($item['details']['ticket_data']['packages_count'], 4, '.', ''),
+            number_format(count($item['details']['header']['pieces']), 4, '.', ''),
             15, true);
 
         $customerCompanyName = $this->formatStringLength(
@@ -130,7 +130,13 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         );
 
         $invoicedWeight = $this->formatStringLength(
-            number_format(max($item['details']['ticket_data']['real_weight'], $item['details']['ticket_data']['volumetric_weight']), 4, '.', ''),
+            number_format(
+                !empty($item['details']['ticket_data']['invoiced_weight']) ?
+                    $item['details']['ticket_data']['invoiced_weight'] :
+                    max($item['details']['ticket_data']['real_weight'], $item['details']['ticket_data']['volumetric_weight']),
+                4,
+                '.',
+                ''),
             15,
             true
         );
@@ -227,7 +233,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             11, true);
 
         $postalTax = 0;
-        $taxes = array_sum(array_map(fn ($tax) => $tax['tax_total'],$headerItem['tax_detail'] ?? []));
+        $taxes = array_sum(array_map(fn($tax) => $tax['tax_total'], $headerItem['tax_detail'] ?? []));
         $taxPercentage = $headerItem['tax_detail'][0]['percentage'] ?? 0;
         $base = $headerItem['tax_detail'][0]['base'] ?? 0;
 
@@ -244,7 +250,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
 
             $code = $this->getExtraChargeCode($item['details']['code']);
 
-            $taxes += array_sum(array_map(fn ($tax) => $tax['tax_total'],$item['tax_detail'] ?? []));
+            $taxes += array_sum(array_map(fn($tax) => $tax['tax_total'], $item['tax_detail'] ?? []));
             $base += $item['tax_detail'][0]['base'] ?? 0;
 
             $lines .= "B$invoiceNumber$trackingNumber$filler$documentCounts$code$subtotal    1  $subtotal" . PHP_EOL;
