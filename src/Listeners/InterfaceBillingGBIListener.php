@@ -84,7 +84,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             5);
 
         $piecesCount = $this->formatStringLength(
-            number_format($item['details']['ticket_data']['packages_count'], 3, '.', ''),
+            number_format(count($item['details']['header']['pieces']), 3, '.', ''),
             15, true);
 
         $customerCompanyName = $this->formatStringLength(
