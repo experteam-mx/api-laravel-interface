@@ -7,6 +7,7 @@ use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
 use Experteam\ApiLaravelInterface\Models\Config;
 use Experteam\ApiLaravelInterface\Models\InterfaceFile;
 use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
+use http\Env;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redis;
@@ -181,13 +182,15 @@ class InterfaceBaseListener
         $from = Carbon::parse($interfaceRequest->from)->format('Y-m-d');
         $to = Carbon::parse($interfaceRequest->to)->format('Y-m-d');
 
+        $env = config('app.env');
+
         if ($interfaceRequest->status == 1) {
-            $subject = "Interfaces SAP $this->country";
+            $subject = "Interfaces SAP $this->country $env";
             $body = "Interfaces SAP $this->country generadas desde $from hasta $to";
             $attachments = $this->getEmailFiles($interfaceRequest);
             $destinations = $this->formatEmails($this->emailsOnSuccess);
         } else {
-            $subject = "Error en las Interfaces SAP $this->country";
+            $subject = "Error en las Interfaces SAP $this->country $env";
             $body = "Error en las Interfaces SAP $this->country generadas desde $from hasta $to:" .
                 " $interfaceRequest->message";
 

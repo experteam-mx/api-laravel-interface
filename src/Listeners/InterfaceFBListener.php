@@ -32,6 +32,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     public array $cashAndCheckPaymentTypes = ['Cash', 'Check'];
     public array $creditDebitCardPaymentTypes = ['Credit Card', 'Debit Card'];
     public array $electronicTransferAndDepositPaymentTypes = ['Transfer', 'Deposit'];
+    private ?string $oneTimeAccount = null;
 
     public function getPayments($event): array
     {
@@ -384,7 +385,8 @@ class InterfaceFBListener extends InterfaceBaseListener
     {
 
         $allocationNumber = $this->formatStringLength($allocationNumber, 18);
-        $accountNumber = $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
+
+        $accountNumber = $this->getAccountNumber($payment);
 
         $accountNumber = Str::padLeft($accountNumber, 10, '0');
 
@@ -679,5 +681,13 @@ class InterfaceFBListener extends InterfaceBaseListener
     protected function getTrackingNumber($payment): string
     {
         return $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'];
+    }
+
+    private function getAccountNumber($payment)
+    {
+        if (!is_null($this->oneTimeAccount)) {
+            return $this->oneTimeAccount;
+        }
+        return $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
     }
 }

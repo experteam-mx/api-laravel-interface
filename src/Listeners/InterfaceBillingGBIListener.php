@@ -32,8 +32,6 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             foreach ($this->getHeaderItems($document) as $item) {
                 $fileContent .= $this->getHeaderLine($document, $item);
                 $fileContent .= $this->getDetailLines($documentCounts, $document, $item);
-
-                $fileContent .= PHP_EOL;
             }
         }
 
@@ -64,7 +62,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
 
     public function getFilename(): string
     {
-        return "gbi_{$this->countryCode}_exp_" . Carbon::now()->format('Ymdhis') . "_CRA.txt";
+        return "gbi_{$this->country}_exp_" . Carbon::now()->format('Ymdhis') . "_CRA.txt";
     }
 
     private function getHeaderLine(array $document, array $item): string
@@ -86,7 +84,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             5);
 
         $piecesCount = $this->formatStringLength(
-            number_format(count($item['details']['header']['pieces']), 4, '.', ''),
+            number_format($item['details']['ticket_data']['packages_count'], 3, '.', ''),
             15, true);
 
         $customerCompanyName = $this->formatStringLength(
@@ -130,13 +128,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         );
 
         $invoicedWeight = $this->formatStringLength(
-            number_format(
-                !empty($item['details']['ticket_data']['invoiced_weight']) ?
-                    $item['details']['ticket_data']['invoiced_weight'] :
-                    max($item['details']['ticket_data']['real_weight'], $item['details']['ticket_data']['volumetric_weight']),
-                4,
-                '.',
-                ''),
+            number_format(max($item['details']['ticket_data']['real_weight'], $item['details']['ticket_data']['volumetric_weight']), 4, '.', ''),
             15,
             true
         );
@@ -150,18 +142,18 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         $trackingNumber = $this->formatStringLength($item['details']['header']['awbNumber'], 18);
 
         $taxImport = $this->formatStringLength('1', 15);
-        $buyRequest = $this->formatStringLength(' ', 15);
+        $buyRequest = $this->formatStringLength(' ', 20);
         $countryIdNumber = $this->formatStringLength(' ', 2);
 
         $originSAC = $this->formatStringLength($item['details']['ticket_data']['origin_service_area_code'], 4);
         $destinationSAC = $this->formatStringLength($item['details']['ticket_data']['destination_service_area_code'], 4);
 
-        $taxId = $this->formatStringLength($this->getTaxId($document), 4);
-        $secondFiller = $this->formatStringLength('', 50);
-        $taxKey = $this->hasTaxKey ? $this->formatStringLength($this->getTaxId($document), 16) : '';
+        $taxId = !$this->hasTaxKey ? $this->formatStringLength($this->getTaxId($document), 16) : $this->formatStringLength(' ', 16);
+        $secondFiller = $this->formatStringLength(' ', 50);
+        $taxKey = $this->hasTaxKey ? $this->formatStringLength($this->getTaxId($document), 16,  true) : '';
 
-        return "A001$this->currencyCode  1010ZFX$exchange$currentDate$DocumentDate$ShipmentDate" .
-            "$oneTimeAccount$oneTimeAccount$oneTimeAccount$oneTimeAccount$product$trackingNumber" .
+        return "A001$this->currencyCode  1010ZFX5   1.0000$currentDate$DocumentDate$ShipmentDate" .
+            "$oneTimeAccount$oneTimeAccount$oneTimeAccount$oneTimeAccount$product$trackingNumber  " .
             "$piecesCount$customerCompanyName$customerContactName$customerZipcode$this->country " .
             "$locationCity$suburb$customerAddress$regionCode$ShipmentDate $stationCode$salesOffice" .
             "$realWeight$invoicedWeight$weightUnit$expressCenter$filler$invoiceNumber$trackingNumber" .
@@ -233,7 +225,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             11, true);
 
         $postalTax = 0;
-        $taxes = array_sum(array_map(fn($tax) => $tax['tax_total'], $headerItem['tax_detail'] ?? []));
+        $taxes = array_sum(array_map(fn ($tax) => $tax['tax_total'],$headerItem['tax_detail'] ?? []));
         $taxPercentage = $headerItem['tax_detail'][0]['percentage'] ?? 0;
         $base = $headerItem['tax_detail'][0]['base'] ?? 0;
 
@@ -250,11 +242,13 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
 
             $code = $this->getExtraChargeCode($item['details']['code']);
 
-            $taxes += array_sum(array_map(fn($tax) => $tax['tax_total'], $item['tax_detail'] ?? []));
+            $taxes += array_sum(array_map(fn ($tax) => $tax['tax_total'],$item['tax_detail'] ?? []));
             $base += $item['tax_detail'][0]['base'] ?? 0;
 
             $lines .= "B$invoiceNumber$trackingNumber$filler$documentCounts$code$subtotal    1  $subtotal" . PHP_EOL;
         }
+
+        $base = $taxes == 0 ? 0 : $base;
 
         if ($this->hasPostalCharge) {
             $taxPercentage = $postalTax;
