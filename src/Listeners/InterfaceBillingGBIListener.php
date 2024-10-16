@@ -183,7 +183,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         return $this->locations->where('id', $this->installations[$installationId]['location_id'])->first();
     }
 
-    protected function getRegion($regionId): array
+    protected function getRegion($regionId): ?array
     {
         if (empty($this->regions[$regionId])) {
             $this->regions[$regionId] = json_decode(Redis::hget('catalogs.region', $regionId), true);
