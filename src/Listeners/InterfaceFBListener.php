@@ -555,7 +555,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $loteNumber = Str::reverse(Str::limit(Str::reverse($lot['value'] ?? $authorization['value'] ?? '-'), 18, ''));
         $cardIssuerCode = $typeCard['code'];
 
-        $account = ($this->isLocalCurrencyPayment($payment) && !empty($typeCard['accountable_account_usd'])) ?
+        $account = ($this->isLocalCurrencyPayment($payment) || empty($typeCard['accountable_account_usd'])) ?
             $typeCard['accountable_account'] :
             $typeCard['accountable_account_usd'];
 
