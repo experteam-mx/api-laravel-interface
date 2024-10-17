@@ -506,13 +506,12 @@ class InterfaceFBListener extends InterfaceBaseListener
         $allocationNumber = $this->formatStringLength($depositNumber, 18);
         //E Efectivo , C Cheche
 
-        $isLocalCurrency = number_format($payment['exchange'], 4) == number_format(1, 4);
         if ($payment['country_payment_type_id'] == $this->countryPaymentTypes['Cash']) {
-            $account = $isLocalCurrency ? $this->cashAccount : $this->cashAccount_usd;
+            $account = $this->isLocalCurrencyPayment($payment) ? $this->cashAccount : $this->cashAccount_usd;
             $code = 'E';
             $paymentNumber = "000000";
         } else {
-            $account = $isLocalCurrency ? $this->checkAccount : $this->checkAccount_usd;
+            $account = $this->isLocalCurrencyPayment($payment) ? $this->checkAccount : $this->checkAccount_usd;
             $code = 'C';
 
             $fields = Collect($payment['details']);
@@ -555,7 +554,10 @@ class InterfaceFBListener extends InterfaceBaseListener
         $authorizationNumber = Str::padLeft(Str::reverse(Str::limit(Str::reverse($authorization['value'] ?? '000000'), 6, '')), 6, '0');
         $loteNumber = Str::reverse(Str::limit(Str::reverse($lot['value'] ?? $authorization['value'] ?? '-'), 18, ''));
         $cardIssuerCode = $typeCard['code'];
-        $account = $typeCard['accountable_account'];
+
+        $account = ($this->isLocalCurrencyPayment($payment) && !empty($typeCard['accountable_account_usd'])) ?
+            $typeCard['accountable_account'] :
+            $typeCard['accountable_account_usd'];
 
         $user = $this->getUser($payment['documents'][0]['user_id']);
         $username = $user['username'];
@@ -685,5 +687,14 @@ class InterfaceFBListener extends InterfaceBaseListener
     protected function getAccountNumber($payment)
     {
         return $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
+    }
+
+    protected function isLocalCurrencyPayment($payment): bool
+    {
+        $countryReferenceCurrency = $this->countryReferenceCurrency
+            ->where('id', $payment['country_reference_currency_id'])
+            ->first();
+
+        return $countryReferenceCurrency['currency_id'] == $this->localCurrencyId;
     }
 }

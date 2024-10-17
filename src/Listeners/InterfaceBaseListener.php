@@ -25,6 +25,7 @@ class InterfaceBaseListener
     protected mixed $toSftp;
     protected string $destFolder = "DO-FB01-IN/";
     protected int $countryId = 0;
+    protected int $localCurrencyId = 0;
     protected int $companyCountryId = 0;
     protected string $start = "";
     protected string $end = "";
@@ -57,6 +58,8 @@ class InterfaceBaseListener
         $this->setLogLine("Get " . $this->country . " country id " . $this->countryId);
 
         $this->countryGmtOffset = $country['timezone'];
+
+        $this->localCurrencyId = $country['currency_id'] ?? 0;
 
         $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
         $this->start = $this->getDatetimeString($start);
