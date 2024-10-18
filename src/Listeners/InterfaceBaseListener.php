@@ -198,7 +198,7 @@ class InterfaceBaseListener
 
             $attachments = [
                 [
-                    'content' => base64_encode(json_encode($interfaceRequest->detail)),
+                    'content' => base64_encode(json_encode($interfaceRequest->detail, JSON_PRETTY_PRINT)),
                     'name' => 'errorDetail.json',
                     'contentType' => 'application/json',
                     'embed' => false,

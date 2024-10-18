@@ -536,9 +536,9 @@ class InterfaceFBListener extends InterfaceBaseListener
         $paymentAdjustments = Collect($payment['payment_adjustment'] ?? []);
         if ($paymentAdjustments->count() > 0 &&
             $paymentAdjustments->where('adjustment_type', 0)->count() > 0) {
-            $line++;
             $tolerance = $paymentAdjustments->where('adjustment_type', 0)->first();
             if (round(abs($tolerance['amount']), 2) != 0.00) {
+                $line++;
                 $allocationNumber = $this->formatStringLength($username, 18);
                 $itemText = $this->formatStringLength(" ", 50);
                 $fileContent .= $this->formatDZGLToleranceLine($tolerance, $line, $allocationNumber, $itemText);
