@@ -19,6 +19,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     public ?Collection $countryReferenceCurrency = null;
     public Collection $deposits;
     public array $closing = [];
+    protected int $localCurrencyId = 0;
     public array $countryPaymentTypes = [];
     public string $language = "ES";
     public string $cashAccount = "1261000080";
@@ -44,6 +45,10 @@ class InterfaceFBListener extends InterfaceBaseListener
                 'message' => 'Interface not generated until configured day of this month'
             ];
         }
+
+        $countryReference = json_decode(Redis::hget('companies.countryReference', $this->countryId), true) ?? null;
+
+        $this->localCurrencyId = $countryReference['currency_id'] ?? 0;
 
         $this->getCountryReferenceCurrencies();
 
@@ -533,9 +538,11 @@ class InterfaceFBListener extends InterfaceBaseListener
             $paymentAdjustments->where('adjustment_type', 0)->count() > 0) {
             $line++;
             $tolerance = $paymentAdjustments->where('adjustment_type', 0)->first();
-            $allocationNumber = $this->formatStringLength($username, 18);
-            $itemText = $this->formatStringLength(" ", 50);
-            $fileContent .= $this->formatDZGLToleranceLine($tolerance, $line, $allocationNumber, $itemText);
+            if (round(abs($tolerance['amount']), 2) != 0.00) {
+                $allocationNumber = $this->formatStringLength($username, 18);
+                $itemText = $this->formatStringLength(" ", 50);
+                $fileContent .= $this->formatDZGLToleranceLine($tolerance, $line, $allocationNumber, $itemText);
+            }
         }
         return [$fileContent, $line];
     }
