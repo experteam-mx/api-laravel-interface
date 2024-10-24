@@ -623,10 +623,11 @@ class InterfaceFBListener extends InterfaceBaseListener
     {
         $depositNumber = null;
         foreach ($this->deposits
-                     ->where('countryPaymentTypeId', $payment['country_payment_type_id'])
                      ->where('countryReferenceCurrencyId', $payment['country_reference_currency_id'])
                      ->all() as $deposit) {
-            if (in_array($payment['opening_id'], $deposit['openingIds'])) {
+            if (in_array($payment['opening_id'], $deposit['openingIds']) &&
+                Collect($deposit['depositDetails'])
+                    ->where('countryPaymentTypeId', $payment['country_payment_type_id'])->count() != 0) {
                 $depositNumber = $deposit['number'];
             }
         }
