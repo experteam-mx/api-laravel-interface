@@ -36,8 +36,8 @@ abstract class GenerateInterfacesCommand extends Command
         $toSftp = is_null($toSftp) || $toSftp == 'true';
 
         return InterfaceRequest::create([
-            'from' => $from->format('Y-m-d H:m:s'),
-            'to' => $to->format('Y-m-d H:m:s'),
+            'from' => $from->format('Y-m-d H:i:s'),
+            'to' => $to->format('Y-m-d H:i:s'),
             'transaction_id' => \Str::orderedUuid()->toString(),
             'status' => 0,
             'to_sftp' => $toSftp,

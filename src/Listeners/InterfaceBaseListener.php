@@ -144,7 +144,7 @@ class InterfaceBaseListener
     {
         $spanArray = explode(':', $this->countryGmtOffset);
         $minutes = ((int)($spanArray[0]) * 60) + ((int)($spanArray[1] ?? 0));
-        return $datetime->addMinutes($minutes)->format('Y-m-d H:i:s');
+        return $datetime->subMinutes($minutes)->format('Y-m-d H:i:s');
     }
 
     public function finishInterfaceRequest(
