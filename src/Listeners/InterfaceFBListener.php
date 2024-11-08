@@ -252,29 +252,27 @@ class InterfaceFBListener extends InterfaceBaseListener
         try {
             $paymentResponse = $this->getPayments($event);
 
-            if (!empty($paymentResponse['message']))
+            if (!is_null($paymentResponse['message'])) {
+                $this->setLogLine($paymentResponse['message']);
                 return [
                     'success' => $paymentResponse['success'],
                     'message' => $paymentResponse['message'],
                     'detail' => []
                 ];
+            }
 
             $payments = $paymentResponse['payments'];
 
             $fileContent = $this->getSingleFileContent($payments);
 
-            if ($fileContent == null) {
-                $this->setLogLine("No payments on closings related to this period and country");
-            } else {
-                $actualDateTime = Carbon::now()->format('YmdHis');
+            $actualDateTime = Carbon::now()->format('YmdHis');
 
-                $this->setLogLine("Sending General file");
-                $this->saveAndSentInterface(
-                    $fileContent,
-                    "FB01_{$this->country}_$actualDateTime.txt",
-                    'General'
-                );
-            }
+            $this->setLogLine("Sending General file");
+            $this->saveAndSentInterface(
+                $fileContent,
+                "FB01_{$this->country}_$actualDateTime.txt",
+                'General'
+            );
         } catch (\Exception $e) {
             $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
         }
@@ -282,11 +280,9 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $response;
     }
 
-    public function getSingleFileContent($payments): ?string
+    public function getSingleFileContent($payments): string
     {
         $paymentsArr = $payments->toArray();
-
-        if (count($paymentsArr) == 0) return null;
 
         foreach ($paymentsArr as &$p) {
             $p['document_id'] = $p['documents'][0]['id'];
