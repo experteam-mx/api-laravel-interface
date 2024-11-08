@@ -263,15 +263,18 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             $fileContent = $this->getSingleFileContent($payments);
 
-            $actualDateTime = Carbon::now()->format('YmdHis');
+            if ($fileContent == null) {
+                $this->setLogLine("No payments on closings related to this period and country");
+            } else {
+                $actualDateTime = Carbon::now()->format('YmdHis');
 
-            $this->setLogLine("Sending General file");
-            $this->saveAndSentInterface(
-                $fileContent,
-                "FB01_{$this->country}_$actualDateTime.txt",
-                'General'
-            );
-
+                $this->setLogLine("Sending General file");
+                $this->saveAndSentInterface(
+                    $fileContent,
+                    "FB01_{$this->country}_$actualDateTime.txt",
+                    'General'
+                );
+            }
         } catch (\Exception $e) {
             $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
         }
@@ -279,9 +282,12 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $response;
     }
 
-    public function getSingleFileContent($payments): string
+    public function getSingleFileContent($payments): ?string
     {
         $paymentsArr = $payments->toArray();
+
+        if (count($paymentsArr) == 0) return null;
+
         foreach ($paymentsArr as &$p) {
             $p['document_id'] = $p['documents'][0]['id'];
         }

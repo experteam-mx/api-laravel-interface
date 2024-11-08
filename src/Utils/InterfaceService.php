@@ -101,7 +101,7 @@ class InterfaceService
 
             $offset = $offset + $iteration;
 
-        } while (count($paymentResponse['payments']) > 0 && $paymentResponse['payments'] == 500);
+        } while (count($paymentResponse['payments']) == 500);
 
         return Collect($paymentsAll);
     }
@@ -135,7 +135,7 @@ class InterfaceService
             $documentsAll = array_merge($documentsAll, $cur_documents);
             $offset = $offset + $iteration;
 
-        } while (count($documentResponse['documents']) > 0 && $documentResponse['documents'] == 500);
+        } while (count($documentResponse['documents']) == 500);
 
 
         return Collect($documentsAll);

@@ -174,7 +174,7 @@ class InterfaceBaseListener
 
     public function formatStringLength(string $string, int $length, bool $left = false): string
     {
-        return str_pad(substr($string, 0, $length), $length, ' ', $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
+        return str_pad(substr(Str::ascii($string), 0, $length), $length, ' ', $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
     }
 
     public function sentEmail(InterfaceRequest $interfaceRequest): void
