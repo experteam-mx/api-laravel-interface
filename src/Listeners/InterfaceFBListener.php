@@ -121,6 +121,8 @@ class InterfaceFBListener extends InterfaceBaseListener
             ];
         }
 
+        $payments = $this->verifyOpenItems($payments->toArray());
+
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
                 'country_id' => $this->countryId,
@@ -395,38 +397,54 @@ class InterfaceFBListener extends InterfaceBaseListener
         $accountNumber = $this->getAccountNumber($payment);
 
         $accountNumber = Str::padLeft($accountNumber, 10, '0');
+        $paymentDueDate = Carbon::create($payment['due_date']);
+        $total = $payment['amount'];
 
         $content = '';
 
-        foreach ($payment['documents'] as $document) {
-            foreach ($this->getHeaderItems($document) as $item) {
-                if ($severalLines) {
-                    $total = $this->getTotalAmountItems($document, $item);
-                } else {
-                    $total = $payment['amount'];
-                }
+        if (empty($payment['fixed_details'])) {
+            foreach ($payment['documents'] as $document) {
+                foreach ($this->getHeaderItems($document) as $item) {
+                    if ($severalLines) {
+                        $total = $this->getTotalAmountItems($document, $item);
+                    }
 
-                $paymentDueDate = Carbon::create($payment['due_date']);
-                $customerPostalCode = $document['customer_postal_code'] ?? 'N/A';
+                    $paymentDueDate = Carbon::create($payment['due_date']);
+                    $customerPostalCode = $document['document']['customer_postal_code'] ?? 'N/A';
 
-                $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
-                    str_pad(
-                        number_format($total, 2, '.', ''),
-                        23, ' ', STR_PAD_LEFT) . //characters 27 to 49
-                    str_pad(" ", 43) . //characters 50 to 92
-                    $paymentDueDate->format('d.m.Y') . str_pad(" ", 22) . //characters 93 to 124
-                    $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
-                    $this->formatStringLength($document['customer_company_name'], 35) . //characters 195 to 230
-                    $this->formatStringLength($document['customer_address_line1'], 35) . //characters 231 to 265
-                    $location['facility_code'] . //characters 266 to 268
-                    str_pad(" ", 32) . "$this->country " . $this->language . $this->formatStringLength($customerPostalCode, 10) .
-                    $this->formatStringLength($document['customer_identification_number'] ?? '', 16) .
-                    "    " . "01 " . PHP_EOL;//todo: map region code
+                    $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
+                        str_pad(
+                            number_format($total, 2, '.', ''),
+                            23, ' ', STR_PAD_LEFT) . //characters 27 to 49
+                        str_pad(" ", 43) . //characters 50 to 92
+                        $paymentDueDate->format('d.m.Y') . str_pad(" ", 22) . //characters 93 to 124
+                        $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
+                        $this->formatStringLength($document['document']['customer_company_name'], 35) . //characters 195 to 230
+                        $this->formatStringLength($document['document']['customer_address_line1'], 35) . //characters 231 to 265
+                        $location['facility_code'] . //characters 266 to 268
+                        str_pad(" ", 32) . "$this->country " . $this->language . $this->formatStringLength($customerPostalCode, 10) .
+                        $this->formatStringLength($document['document']['customer_identification_number'] ?? '', 16) .
+                        "    " . "01 " . PHP_EOL;//todo: map region code
 
-                if (!$severalLines) {
-                    break;
+                    if (!$severalLines) {
+                        break;
+                    }
                 }
             }
+        } else {
+            $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
+                str_pad(
+                    number_format($total, 2, '.', ''),
+                    23, ' ', STR_PAD_LEFT) . //characters 27 to 49
+                str_pad(" ", 43) . //characters 50 to 92
+                $paymentDueDate->format('d.m.Y') . str_pad(" ", 22) . //characters 93 to 124
+                $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
+                $this->formatStringLength($payment['fixed_details']['customer_company_name'], 35) . //characters 195 to 230
+                $this->formatStringLength('.', 35) . //characters 231 to 265
+                $location['facility_code'] . //characters 266 to 268
+                str_pad(" ", 32) . "$this->country " . $this->language . $this->formatStringLength('N/A', 10) .
+                $this->formatStringLength($payment['fixed_details']['customer_identification_number'] ?? '', 16) .
+                "    " . "01 " . PHP_EOL;//todo: map region code
         }
 
         return $content;
@@ -685,18 +703,21 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     protected function getInvoiceNumber($payment): string
     {
+        if (!empty($payment['fixed_details']['invoice_number']))
+            return $payment['fixed_details']['invoice_number'];
+
         $document = $payment['documents'][0]['document'];
         return $document['document_prefix'] . $document['document_number'];
     }
 
     protected function getTrackingNumber($payment): string
     {
-        return $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'];
+        return $payment['fixed_details']['shipment_tracking_number'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'];
     }
 
     protected function getAccountNumber($payment)
     {
-        return $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
+        return $payment['fixed_details']['account'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
     }
 
     protected function isLocalCurrencyPayment($payment): bool
@@ -706,5 +727,75 @@ class InterfaceFBListener extends InterfaceBaseListener
             ->first();
 
         return $countryReferenceCurrency['currency_id'] == $this->localCurrencyId;
+    }
+
+    protected function verifyOpenItems($payments)
+    {
+
+        $newPayments = Collect([]);
+        $openItemsPayment = [];
+        foreach ($payments->toArray() as $key => $payment) {
+            $item = $payment['documents'][0]['items'][0];
+            if ($item['model_type'] == 'OpenItem') {
+                /** Filter same document payments to divide all payments across al documents */
+                if (!empty($openItemsPayment[$payment['id']])) {
+                    unset($openItemsPayment[$payment['id']]);
+                    continue;
+                }
+                $tmPayments = $payments->filter(function (array $p, int $key) use ($payment) {
+                    return $p['documents'][0]['id'] > $payment['documents'][0]['id'];
+                });
+                $openItemsPayment[] = array_merge($openItemsPayment, array_flip(array_map(fn ($p) => $p['id'], $tmPayments)));
+                unset($openItemsPayment[$payment['id']]);
+
+                foreach ($this->formatOpenItemsPayments($tmPayments) as $p) {
+                    $newPayments->push($p);
+                }
+            } else {
+                $newPayments->push($payment);
+            }
+        }
+        return $newPayments;
+    }
+
+    protected function formatOpenItemsPayments($tmPayments): array
+    {
+        $paymentsReturn = [];
+        $openItems = array_map(fn($item) => $item['details'], $tmPayments->toArray()[0]['documents'][0]['items']);
+
+        $openItemsTotal = array_sum(array_column($openItems, 'payed_value'));
+
+        $openItemsLength = count($openItems);
+
+        $paymentValues = [];
+
+        foreach ($openItems as $k => $openItem) {
+            $factor = $openItem['payed_value'] / $openItemsTotal;
+
+            foreach ($tmPayments as $payment) {
+                if ($factor == 1) { // one open item, one or several payments
+                    $amount = $payment['received'];
+                } else { // several open items
+                    if (($k + 1) == $openItemsLength) { // last open item
+                        $amount = $payment['received'] - $paymentValues[$payment['id']];
+                    } else {
+                        $amount = round($payment['received'] * $factor, 2);
+                        $paymentValues[$payment['id']] += $amount;
+                    }
+                }
+                $payment['received'] = $amount;
+                $payment['fixed_details'] = [
+                    'invoice_number' => $openItem['invoice_number'],
+                    'shipment_tracking_number' => $openItem['shipment_tracking_number'],
+                    //'invoice_issue_datetime' => $openItem['invoice_issue_datetime'],
+                    'customer_identification_number' => $openItem['customer_identification_number'],
+                    'customer_company_name' => $openItem['customer_company_name'],
+                    'account' => $openItem['account'],
+                    'payed_value' => $openItem['payed_value'],
+                ];
+                $paymentsReturn[] = $payment;
+            }
+        }
+        return $paymentsReturn;
     }
 }
