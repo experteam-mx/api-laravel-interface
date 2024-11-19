@@ -146,4 +146,36 @@ class InterfaceService
         return Carbon::now()->format('Y/m/d H:i:s') . " - " . $line . PHP_EOL;
     }
 
+    public function getFormatedLog(string $logs): string
+    {
+        return '        
+        <style>
+                #console-log {
+                    font-family: Arial, sans-serif;                    
+                    color: #333;                    
+                }
+                .log-container {
+                    background-color: #f9f9f9;
+                    padding-left: 30px;
+                    border-radius: 5px;
+                    border: 1px solid #ddd;
+                    font-family: monospace;
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                }
+                .log-title {
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                    color: #555;
+                }
+            </style>                
+        <div id="console-log">
+            <h3 class="log-title">Console Logs</h3>
+            <div class="log-container">
+                ' . $logs . '
+            </div>
+        </div>        
+        ';
+    }
+
 }
