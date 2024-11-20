@@ -125,7 +125,7 @@ class InterfaceBaseListener
 
     protected function setLogLine(?string $message): void
     {
-        $this->logLine .= $message ? "\n$message" : '';
+        $this->logLine .= $message ? "<br>$message" : '';
 
         Console::getOutput()->writeLine($message);
     }
@@ -187,15 +187,16 @@ class InterfaceBaseListener
 
         $env = config('app.env');
         $interfaceRangeStr = "generadas desde $from hasta $to";
+        $interfaceType = $interfaceRequest->type ?? 'Payment';
 
         if ($interfaceRequest->status == 1) {
-            $subject = "Interfaces SAP $this->country $env $interfaceRangeStr";
-            $body = "Interfaces SAP $this->country $interfaceRangeStr";
+            $subject = "Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+            $body = "Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
             $attachments = $this->getEmailFiles($interfaceRequest);
             $destinations = $this->formatEmails($this->emailsOnSuccess);
         } else {
-            $subject = "Error en las Interfaces SAP $this->country $env $interfaceRangeStr";
-            $body = "Error en las Interfaces SAP $this->country $interfaceRangeStr:" .
+            $subject = "Error en las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+            $body = "Error en las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr:" .
                 " $interfaceRequest->message";
 
             $interfaceRequest->refresh();

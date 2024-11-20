@@ -18,6 +18,7 @@ use Jenssegers\Mongodb\Query\Builder;
  * @property Carbon|null $from
  * @property Carbon|null $to
  * @property bool|null $to_sftp
+ * @property string|null $type
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, InterfaceFile> $interfaceFiles
@@ -41,6 +42,7 @@ class InterfaceRequest extends BaseModel
         'to_sftp',
         'message',
         'detail',
+        'type'
     ];
 
     protected $casts = [
