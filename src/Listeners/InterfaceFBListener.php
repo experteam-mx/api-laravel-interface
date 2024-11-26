@@ -361,7 +361,7 @@ class InterfaceFBListener extends InterfaceBaseListener
             ->where('id', $payment['country_reference_currency_id'])
             ->first();
 
-        return "H  $this->countryCode     DZ" . $this->getClosingDatetime($payment)->format('d.m.Y') . Carbon::now()->format('d.m.Y') .
+        return "H  $this->countryCode     DZ" . $this->getClosingDatetime($payment)->format('d.m.Y') . $this->getDatetimeGmt(Carbon::now())->format('d.m.Y') .
             "{$headerString}{$location['location_code']} " . $this->getClosingDatetime($payment)->format('d-m') . " " . //character 35 to 59
             "{$countryReferenceCurrency['currency']['code']}  " . $this->formatStringLength(number_format($payment['exchange'], 4, '.', ''), 9, true) .
             $this->formatStringLength($invoiceNumber, 16) . " " . PHP_EOL; //character 60 to 109
@@ -671,7 +671,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     protected function getClosingDatetime($payment): Carbon
     {
-        return Carbon::parse($this->getClosing($payment)['createdAt']) ?? Carbon::now();
+        return $this->getDatetimeGmt(Carbon::parse($this->getClosing($payment)['createdAt']) ?? Carbon::now());
     }
 
     public function getCountryReferenceCurrencies(): void

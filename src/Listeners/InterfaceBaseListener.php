@@ -23,7 +23,7 @@ class InterfaceBaseListener
     protected Collection $locations;
     protected mixed $interfaceRequestId;
     protected mixed $toSftp;
-    protected string $destFolder = "DO-FB01-IN/";
+    protected string $destFolder = "";
     protected int $countryId = 0;
     protected int $companyCountryId = 0;
     protected string $start = "";
@@ -32,6 +32,7 @@ class InterfaceBaseListener
     protected bool $sentEmail = false;
     protected array $emailsOnFail = ['crasupport@experteam.com.ec'];
     protected array $emailsOnSuccess = ['crasupport@experteam.com.ec'];
+    private string $logLine = "";
 
     protected function init($event): bool
     {
@@ -59,9 +60,9 @@ class InterfaceBaseListener
         $this->countryGmtOffset = $country['timezone'];
 
         $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
-        $this->start = $this->getDatetimeString($start);
+        $this->start = $this->getDatetimeGmt($start)->format('Y-m-d H:i:s');
 
-        $this->end = $this->getDatetimeString($end);
+        $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
 
         $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.company-countries.get_all'), [
@@ -124,6 +125,8 @@ class InterfaceBaseListener
 
     protected function setLogLine(?string $message): void
     {
+        $this->logLine .= $message ? "<br>$message" : '';
+
         Console::getOutput()->writeLine($message);
     }
 
@@ -140,11 +143,11 @@ class InterfaceBaseListener
         return $this->interfaceFilesystem;
     }
 
-    protected function getDatetimeString(Carbon $datetime): string
+    protected function getDatetimeGmt(Carbon $datetime): Carbon
     {
         $spanArray = explode(':', $this->countryGmtOffset);
         $minutes = ((int)($spanArray[0]) * 60) + ((int)($spanArray[1] ?? 0));
-        return $datetime->subMinutes($minutes)->format('Y-m-d H:i:s');
+        return $datetime->subMinutes($minutes);
     }
 
     public function finishInterfaceRequest(
@@ -183,15 +186,17 @@ class InterfaceBaseListener
         $to = Carbon::parse($interfaceRequest->to)->format('Y-m-d');
 
         $env = config('app.env');
+        $interfaceRangeStr = "generadas desde $from hasta $to";
+        $interfaceType = $interfaceRequest->type ?? 'Payment';
 
         if ($interfaceRequest->status == 1) {
-            $subject = "Interfaces SAP $this->country $env";
-            $body = "Interfaces SAP $this->country generadas desde $from hasta $to";
+            $subject = "Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+            $body = "Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
             $attachments = $this->getEmailFiles($interfaceRequest);
             $destinations = $this->formatEmails($this->emailsOnSuccess);
         } else {
-            $subject = "Error en las Interfaces SAP $this->country $env";
-            $body = "Error en las Interfaces SAP $this->country generadas desde $from hasta $to:" .
+            $subject = "Error en las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+            $body = "Error en las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr:" .
                 " $interfaceRequest->message";
 
             $interfaceRequest->refresh();
@@ -206,6 +211,9 @@ class InterfaceBaseListener
             ];
             $destinations = $this->formatEmails($this->emailsOnFail);
         }
+
+        $body .= InterfaceFacade::getFormatedLog($this->logLine);
+
         ApiClientFacade::setBaseUrl(config('experteam-crud.services.base_url'))
             ->post(config('experteam-crud.services.emails'), [
                 'destinations' => $destinations,
