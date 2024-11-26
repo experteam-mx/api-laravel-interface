@@ -121,7 +121,7 @@ class InterfaceFBListener extends InterfaceBaseListener
             ];
         }
 
-        $payments = $this->verifyOpenItems($payments->toArray());
+        $payments = $this->verifyOpenItems($payments);
 
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
@@ -710,6 +710,12 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $document['document_prefix'] . $document['document_number'];
     }
 
+    protected function getCustomerIdentificationNumber($payment)
+    {
+        return $payment['fixed_details']['customer_identification_number'] ??
+            $payment['documents'][0]['document']['customer_identification_number'];
+    }
+
     protected function getTrackingNumber($payment): string
     {
         return $payment['fixed_details']['shipment_tracking_number'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'];
@@ -734,18 +740,21 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $newPayments = Collect([]);
         $openItemsPayment = [];
-        foreach ($payments->toArray() as $key => $payment) {
+        foreach ($payments->toArray() as $payment) {
             $item = $payment['documents'][0]['items'][0];
+
             if ($item['model_type'] == 'OpenItem') {
                 /** Filter same document payments to divide all payments across al documents */
                 if (!empty($openItemsPayment[$payment['id']])) {
                     unset($openItemsPayment[$payment['id']]);
                     continue;
                 }
-                $tmPayments = $payments->filter(function (array $p, int $key) use ($payment) {
-                    return $p['documents'][0]['id'] > $payment['documents'][0]['id'];
+                $tmPayments = $payments->filter(function (array $p) use ($payment) {
+                    return $p['documents'][0]['id'] == $payment['documents'][0]['id'];
                 });
-                $openItemsPayment[] = array_merge($openItemsPayment, array_flip(array_map(fn ($p) => $p['id'], $tmPayments)));
+
+                $openItemsPayment = array_flip([...array_flip($openItemsPayment), ...array_map(fn ($p) => $p['id'], $tmPayments->toArray())]);
+
                 unset($openItemsPayment[$payment['id']]);
 
                 foreach ($this->formatOpenItemsPayments($tmPayments) as $p) {
@@ -761,7 +770,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     protected function formatOpenItemsPayments($tmPayments): array
     {
         $paymentsReturn = [];
-        $openItems = array_map(fn($item) => $item['details'], $tmPayments->toArray()[0]['documents'][0]['items']);
+        $openItems = array_map(fn($item) => $item['details'], array_values($tmPayments->toArray())[0]['documents'][0]['items']);
 
         $openItemsTotal = array_sum(array_column($openItems, 'payed_value'));
 
@@ -780,10 +789,11 @@ class InterfaceFBListener extends InterfaceBaseListener
                         $amount = $payment['received'] - $paymentValues[$payment['id']];
                     } else {
                         $amount = round($payment['received'] * $factor, 2);
-                        $paymentValues[$payment['id']] += $amount;
+                        $paymentValues[$payment['id']] = ($paymentValues[$payment['id']] ?? 0) + $amount;
                     }
                 }
                 $payment['received'] = $amount;
+                $payment['amount'] = $amount;
                 $payment['fixed_details'] = [
                     'invoice_number' => $openItem['invoice_number'],
                     'shipment_tracking_number' => $openItem['shipment_tracking_number'],
