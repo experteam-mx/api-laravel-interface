@@ -432,6 +432,8 @@ class InterfaceFBListener extends InterfaceBaseListener
                 }
             }
         } else {
+            $allocationNumber = ($payment['fixed_details']['kind'] == 'openItem') ? $allocationNumber : $this->formatStringLength('ABONO', 18);
+            $facilityCode = ($payment['fixed_details']['kind'] == 'openItem') ? $location['facility_code'] : '.  ';
             $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
                 str_pad(
                     number_format($total, 2, '.', ''),
@@ -441,7 +443,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
                 $this->formatStringLength($payment['fixed_details']['customer_company_name'], 35) . //characters 195 to 230
                 $this->formatStringLength('.', 35) . //characters 231 to 265
-                $location['facility_code'] . //characters 266 to 268
+                $facilityCode . //characters 266 to 268
                 str_pad(" ", 32) . "$this->country " . $this->language . $this->formatStringLength('N/A', 10) .
                 $this->formatStringLength($payment['fixed_details']['customer_identification_number'] ?? '', 16) .
                 "    " . "01 " . PHP_EOL;//todo: map region code
@@ -760,6 +762,16 @@ class InterfaceFBListener extends InterfaceBaseListener
                 foreach ($this->formatOpenItemsPayments($tmPayments) as $p) {
                     $newPayments->push($p);
                 }
+            } elseif($item['model_type'] == 'AccountPayment') {
+                $payment['fixed_details'] = [
+                    'invoice_number' => $payment['documents'][0]['document_prefix'] . $payment['documents'][0]['document_number'],
+                    'shipment_tracking_number' => '.',
+                    'customer_identification_number' => '.',
+                    'customer_company_name' => '.',
+                    'account' => $payment['documents'][0]['items'][0]['details']['account'],
+                    'kind' => 'accountCollection',
+                ];
+                $newPayments->push($payment);
             } else {
                 $newPayments->push($payment);
             }
@@ -797,11 +809,11 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $payment['fixed_details'] = [
                     'invoice_number' => $openItem['invoice_number'],
                     'shipment_tracking_number' => $openItem['shipment_tracking_number'],
-                    //'invoice_issue_datetime' => $openItem['invoice_issue_datetime'],
                     'customer_identification_number' => $openItem['customer_identification_number'],
                     'customer_company_name' => $openItem['customer_company_name'],
                     'account' => $openItem['account'],
                     'payed_value' => $openItem['payed_value'],
+                    'kind' => 'openItem',
                 ];
                 $paymentsReturn[] = $payment;
             }
