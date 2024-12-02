@@ -5,7 +5,7 @@ namespace Experteam\ApiLaravelInterface\Models;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
-use Jenssegers\Mongodb\Query\Builder;
+use MongoDB\Laravel\Query\Builder;
 
 /**
  * Experteam\ApiLaravelInterface\Models\InterfaceRequest
@@ -32,7 +32,7 @@ class InterfaceRequest extends BaseModel
 {
     use HasFactory;
 
-    protected $collection = 'interface_request';
+    protected $table = 'interface_request';
 
     protected $fillable = [
         'transaction_id',
