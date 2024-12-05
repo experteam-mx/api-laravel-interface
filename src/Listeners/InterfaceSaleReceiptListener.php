@@ -121,7 +121,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
             if (empty($shipment))
                 continue;
 
-            $shpCompanyCountryExtraCharges = $this->getShipmentItems($document, $shipment);
+            $shpCompanyCountryExtraCharges = $this->getShipmentItems($document, $shipment[0]);
             $date = Carbon::create($document['created_at']);
 
             $ivaTotal = 0;
@@ -130,7 +130,15 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
 
             foreach ($shipment as $shp) {
 
-                [$shipmentTrackingNumber, $account, $productCode, $origin, $destination, $client, $packagesCount, $realWeight] = $this->getDetailsItems($document, $shp);
+                $productCode = $shp['details']['code'];
+                $shipmentTrackingNumber = $shp['details']['header']['awbNumber'];
+                $account = $shp['details']['header']['accountNumber'];
+                $origin = $shp['details']['ticket_data']['origin_service_area_code'];
+                $destination = $shp['details']['ticket_data']['destination_service_area_code'];
+                $client = $shp['details']['ticket_data']['origin']['company_name'];
+                $packagesCount = $shp['details']['ticket_data']['packages_count'];
+                $realWeight = $shp['details']['ticket_data']['real_weight'];
+
                 $iva = $this->getTaxIva($shp['tax_detail']);
                 $ivaTotal += (float)$iva['tax_total'];
 
@@ -204,32 +212,6 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
         $items = Collect($tax);
         return $items->where('tax', 'IVA')
             ->first();
-    }
-
-    private function getDetailsItems($document, $item): array
-    {
-        $shipmentTrackingNumber = null;
-        $account = null;
-        $productCode = null;
-        $origin = null;
-        $destination = null;
-        $client = null;
-        $packagesCount = null;
-        $realWeight = null;
-        foreach ($document['items'] as $i) {
-            if ($item['details']['header']['awbNumber'] == ($i['details']['relation'] ?? '')) {
-                $productCode = $item['details']['code'];
-                $shipmentTrackingNumber = $item['details']['header']['awbNumber'];
-                $account = $item['details']['header']['accountNumber'];
-                $origin = $item['details']['ticket_data']['origin_service_area_code'];
-                $destination = $item['details']['ticket_data']['destination_service_area_code'];
-                $client = $item['details']['ticket_data']['origin']['company_name'];
-                $packagesCount = $item['details']['ticket_data']['packages_count'];
-                $realWeight = $item['details']['ticket_data']['real_weight'];
-
-            }
-        }
-        return [$shipmentTrackingNumber, $account, $productCode, $origin, $destination, $client, $packagesCount, $realWeight];
     }
 
     private function formatLine(
