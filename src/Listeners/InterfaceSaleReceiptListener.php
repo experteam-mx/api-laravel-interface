@@ -115,7 +115,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
 
         foreach ($documents as $document) {
 
-            $location = $this->getLocation($document['document_type_range']['model_id']);
+            $location = $this->getLocation($document['installation_id']);
             $result = [];
             $shipment = $this->getHeaderItems($document);
             if (empty($shipment))
