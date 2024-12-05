@@ -4,7 +4,7 @@ namespace Experteam\ApiLaravelInterface\Models;
 
 use Carbon\Carbon;
 use Experteam\ApiLaravelCrud\Models\ModelPaginate;
-use Jenssegers\Mongodb\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
 
 class BaseModel extends Model
 {

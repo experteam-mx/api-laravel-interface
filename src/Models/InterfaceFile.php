@@ -4,7 +4,7 @@ namespace Experteam\ApiLaravelInterface\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Carbon;
-use Jenssegers\Mongodb\Query\Builder;
+use MongoDB\Laravel\Query\Builder;
 
 /**
  * Experteam\ApiLaravelInterface\Models\InterfaceFile
@@ -29,7 +29,7 @@ class InterfaceFile extends BaseModel
 {
     use HasFactory;
 
-    protected $collection = 'interface_file';
+    protected $table = 'interface_file';
 
     protected $fillable = [
         'name',
