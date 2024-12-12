@@ -432,6 +432,9 @@ class InterfaceFBListener extends InterfaceBaseListener
                 }
             }
         } else {
+            if ($severalLines) {
+                $total ??= $payment['fixed_details']['payed_value'];
+            }
             $allocationNumber = ($payment['fixed_details']['kind'] == 'openItem') ? $allocationNumber : $this->formatStringLength('ABONO', 18);
             $facilityCode = ($payment['fixed_details']['kind'] == 'openItem') ? $location['facility_code'] : '.  ';
             $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
@@ -692,6 +695,9 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     private function getTotalAmountItems($document, $item): float
     {
+
+        if (!empty($item['details']['header']['total'])) return (float)$item['details']['header']['total'];
+
         $total = $item['total'];
 
         foreach ($document['items'] as $i) {
