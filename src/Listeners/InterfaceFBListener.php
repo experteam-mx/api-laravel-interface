@@ -400,6 +400,10 @@ class InterfaceFBListener extends InterfaceBaseListener
         $paymentDueDate = Carbon::create($payment['due_date']);
         $total = $payment['amount'];
 
+        $regionCode = $this->formatStringLength(
+            $this->getRegion($location['country_region_id'] ?? 0)['code'] ?? '01',
+            3);
+
         $content = '';
 
         if (empty($payment['fixed_details'])) {
@@ -422,9 +426,9 @@ class InterfaceFBListener extends InterfaceBaseListener
                         $this->formatStringLength($document['document']['customer_company_name'], 35) . //characters 195 to 230
                         $this->formatStringLength($document['document']['customer_address_line1'], 35) . //characters 231 to 265
                         $location['facility_code'] . //characters 266 to 268
-                        str_pad(" ", 32) . "$this->country " . $this->language . $this->formatStringLength($customerPostalCode, 10) .
+                        str_pad(" ", 32) . "$this->country $this->language" . $this->formatStringLength($customerPostalCode, 10) .
                         $this->formatStringLength($document['document']['customer_identification_number'] ?? '', 16) .
-                        "    " . "01 " . PHP_EOL;//todo: map region code
+                        "    $regionCode" . PHP_EOL;
 
                     if (!$severalLines) {
                         break;
@@ -447,9 +451,9 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->formatStringLength($payment['fixed_details']['customer_company_name'], 35) . //characters 195 to 230
                 $this->formatStringLength('.', 35) . //characters 231 to 265
                 $facilityCode . //characters 266 to 268
-                str_pad(" ", 32) . "$this->country " . $this->language . $this->formatStringLength('N/A', 10) .
+                str_pad(" ", 32) . "$this->country $this->language" . $this->formatStringLength('N/A', 10) .
                 $this->formatStringLength($payment['fixed_details']['customer_identification_number'] ?? '', 16) .
-                "    " . "01 " . PHP_EOL;//todo: map region code
+                "    $regionCode" . PHP_EOL;
         }
 
         return $content;

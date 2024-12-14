@@ -22,7 +22,6 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
     protected array $countryReference = [];
     private array $products = [];
     private array $installations = [];
-    private array $regions = [];
 
     public function getFileContent($documents): string
     {
@@ -181,14 +180,6 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             $this->installations[$installationId] = json_decode(Redis::hget('companies.installation', $installationId), true);
         }
         return $this->locations->where('id', $this->installations[$installationId]['location_id'])->first();
-    }
-
-    protected function getRegion($regionId): ?array
-    {
-        if (empty($this->regions[$regionId])) {
-            $this->regions[$regionId] = json_decode(Redis::hget('catalogs.region', $regionId), true);
-        }
-        return $this->regions[$regionId];
     }
 
     protected function getStationCode(array $location): string
