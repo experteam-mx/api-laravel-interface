@@ -109,7 +109,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
         return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
     }
 
-    private function getDataDocuments(Collection $documents): ?array
+    protected function getDataDocuments(Collection $documents): ?array
     {
         $result = [];
 
@@ -207,14 +207,14 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
         return $result;
     }
 
-    private function getTaxIva($tax): array
+    protected function getTaxIva($tax): array
     {
         $items = Collect($tax);
         return $items->where('tax', 'IVA')
             ->first();
     }
 
-    private function formatLine(
+    protected function formatLine(
         string     $dateInfo,
         string     $numberReceipt,
         string     $origin,

@@ -20,8 +20,8 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
     protected bool $packagingExtraChargeSpecialCode = false;
     protected bool $hasPostalCharge = false;
     protected array $countryReference = [];
-    private array $products = [];
-    private array $installations = [];
+    protected array $products = [];
+    protected array $installations = [];
 
     public function getFileContent($documents): string
     {
@@ -64,7 +64,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         return "gbi_{$this->country}_exp_" . Carbon::now()->format('Ymdhis') . "_CRA.txt";
     }
 
-    private function getHeaderLine(array $document, array $item): string
+    protected function getHeaderLine(array $document, array $item): string
     {
         $exchange = $this->formatStringLength(
             number_format($document['exchange'], 4, '.', ''),
@@ -197,7 +197,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         return $document['customer_identification_number'];
     }
 
-    private function getDetailLines(int $documentCounts, array $document, mixed $headerItem): string
+    protected function getDetailLines(int $documentCounts, array $document, mixed $headerItem): string
     {
         $invoiceNumber = $this->formatStringLength($document['document_prefix'] . $document['document_number'] . $document['document_suffix'], 16);
         $trackingNumber = $this->formatStringLength($headerItem['details']['header']['awbNumber'], 20);

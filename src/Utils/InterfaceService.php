@@ -141,7 +141,7 @@ class InterfaceService
         return Collect($documentsAll);
     }
 
-    private function logLineFormat(string $line): string
+    protected function logLineFormat(string $line): string
     {
         return Carbon::now()->format('Y/m/d H:i:s') . " - " . $line . PHP_EOL;
     }

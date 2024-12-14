@@ -697,7 +697,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $this->countryReferenceCurrency = Collect($countryReferenceCurrencyList);
     }
 
-    private function getTotalAmountItems($document, $item): float
+    protected function getTotalAmountItems($document, $item): float
     {
 
         if (!empty($item['details']['header']['total'])) return (float)$item['details']['header']['total'];

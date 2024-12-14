@@ -32,8 +32,8 @@ class InterfaceBaseListener
     protected bool $sentEmail = false;
     protected array $emailsOnFail = ['crasupport@experteam.com.ec'];
     protected array $emailsOnSuccess = ['crasupport@experteam.com.ec'];
-    private string $logLine = "";
-    private array $regions = [];
+    protected string $logLine = "";
+    protected array $regions = [];
 
     protected function init($event): bool
     {
