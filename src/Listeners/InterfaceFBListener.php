@@ -414,7 +414,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                     }
 
                     $paymentDueDate = Carbon::create($payment['due_date']);
-                    $customerPostalCode = $document['document']['customer_postal_code'] ?? 'N/A';
+                    $customerPostalCode = $document['document']['customer_postal_code'] ?? $document['customer_postal_code'] ?? 'N/A';
 
                     $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
                         str_pad(
@@ -423,11 +423,11 @@ class InterfaceFBListener extends InterfaceBaseListener
                         str_pad(" ", 43) . //characters 50 to 92
                         $paymentDueDate->format('d.m.Y') . str_pad(" ", 22) . //characters 93 to 124
                         $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
-                        $this->formatStringLength($document['document']['customer_company_name'], 35) . //characters 195 to 230
-                        $this->formatStringLength($document['document']['customer_address_line1'], 35) . //characters 231 to 265
+                        $this->formatStringLength($document['document']['customer_company_name'] ?? $document['customer_company_name'], 35) . //characters 195 to 230
+                        $this->formatStringLength($document['document']['customer_address_line1'] ?? $document['customer_address_line1'], 35) . //characters 231 to 265
                         $location['facility_code'] . //characters 266 to 268
                         str_pad(" ", 32) . "$this->country $this->language" . $this->formatStringLength($customerPostalCode, 10) .
-                        $this->formatStringLength($document['document']['customer_identification_number'] ?? '', 16) .
+                        $this->formatStringLength($document['document']['customer_identification_number'] ?? $document['customer_identification_number'] ?? '', 16) .
                         "    $regionCode" . PHP_EOL;
 
                     if (!$severalLines) {
