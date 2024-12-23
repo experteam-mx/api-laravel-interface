@@ -184,9 +184,9 @@ class InterfaceBaseListener
             $this->sentEmail($interfaceRequest);
     }
 
-    public function formatStringLength(string $string, int $length, bool $left = false): string
+    public function formatStringLength(string $string, int $length, bool $left = false, string $pad =' '): string
     {
-        return str_pad(substr(Str::ascii($string), 0, $length), $length, ' ', $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
+        return str_pad(substr(Str::ascii($string), 0, $length), $length, $pad, $left ? STR_PAD_LEFT : STR_PAD_RIGHT);
     }
 
     public function sentEmail(InterfaceRequest $interfaceRequest): void

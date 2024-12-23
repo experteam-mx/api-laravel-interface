@@ -109,14 +109,17 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
         return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
     }
 
-    protected function getDataDocuments(Collection $documents): ?array
+    public function getDataDocuments(Collection $documents): ?array
     {
         $result = [];
 
         foreach ($documents as $document) {
 
             $location = $this->getLocation($document['installation_id']);
-            $result = [];
+            if (is_null($location))
+                continue;
+
+
             $shipment = $this->getHeaderItems($document);
             if (empty($shipment))
                 continue;
@@ -135,19 +138,26 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                 $account = $shp['details']['header']['accountNumber'];
                 $origin = $shp['details']['ticket_data']['origin_service_area_code'];
                 $destination = $shp['details']['ticket_data']['destination_service_area_code'];
-                $client = $shp['details']['ticket_data']['origin']['company_name'];
+                $client = Str::ascii(substr( $shp['details']['ticket_data']['origin']['company_name'],0,50));
                 $packagesCount = $shp['details']['ticket_data']['packages_count'];
                 $realWeight = $shp['details']['ticket_data']['real_weight'];
 
-                $iva = $this->getTaxIva($shp['tax_detail']);
-                $ivaTotal += (float)$iva['tax_total'];
+                if (!empty($shp['tax_detail'])) {
+                    $iva = $this->getTaxIva($shp['tax_detail']);
+                    if (!is_null($iva)) {
+                        $ivaTotal += (float)$iva['tax_total'];
+                    }
+
+                }
 
                 $result[] = [
-                    'type' => 'FT',
+                    'type' => 'Product',
+                    'code' => 'FT',
                     'country_code' => $this->country,
                     'location_code' => $location['location_code'],
                     'account' => $account,
-                    'amount' => str_replace('.', '', $shp['subtotal']),
+                    'amount_subtotal' => str_replace('.', '', number_format($shp['subtotal'], 2,'.','')),
+                    'amount' => str_replace('.', '', number_format($shp['total'], 2,'.','')),
                     'date' => $date->format('dmy'),
                     'shipment_tracking_number' => $shipmentTrackingNumber,
                     'number_receipt' => $numberReceipt,
@@ -163,15 +173,22 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
             if (!empty($shpCompanyCountryExtraCharges)) {
 
                 foreach ($shpCompanyCountryExtraCharges as $shpCompanyCountryExtraCharge) {
-                    $iva = $this->getTaxIva($shp['tax_detail']);
-                    $ivaTotal += (float)$iva['tax_total'];
+
+                    if (!empty($shp['tax_detail'])) {
+                        $iva = $this->getTaxIva($shp['tax_detail']);
+                        if (!is_null($iva)) {
+                            $ivaTotal += (float)$iva['tax_total'];
+                        }
+                    }
 
                     $result[] = [
-                        'type' => $shpCompanyCountryExtraCharge['details']['code'],
+                        'type' => 'ExtraCharge',
+                        'code' => $shpCompanyCountryExtraCharge['details']['code'],
                         'country_code' => $this->country,
                         'location_code' => $location['location_code'],
                         'account' => $account,
-                        'amount' => str_replace('.', '', $shpCompanyCountryExtraCharge['subtotal']),
+                        'amount_subtotal' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['subtotal'], 2,'.','')),
+                        'amount' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['total'], 2,'.','')),
                         'date' => $date->format('dmy'),
                         'shipment_tracking_number' => $shipmentTrackingNumber,
                         'number_receipt' => $numberReceipt,
@@ -187,11 +204,12 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
             }
 
             $result[] = [
-                'type' => 'IV',
+                'type' => 'Tax',
+                'code' => 'IV',
                 'country_code' => $this->country,
                 'location_code' => $location['location_code'],
                 'account' => $account,
-                'amount' => str_replace('.', '', $ivaTotal),
+                'amount' => str_replace('.', '', number_format($ivaTotal,2,'.','')),
                 'date' => $date->format('dmy'),
                 'shipment_tracking_number' => $shipmentTrackingNumber,
                 'number_receipt' => $numberReceipt,
@@ -204,10 +222,11 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
             ];
         }
 
+
         return $result;
     }
 
-    protected function getTaxIva($tax): array
+    protected function getTaxIva($tax): ?array
     {
         $items = Collect($tax);
         return $items->where('tax', 'IVA')
