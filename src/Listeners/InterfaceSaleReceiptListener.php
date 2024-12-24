@@ -138,7 +138,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                 $account = $shp['details']['header']['accountNumber'];
                 $origin = $shp['details']['ticket_data']['origin_service_area_code'];
                 $destination = $shp['details']['ticket_data']['destination_service_area_code'];
-                $client = Str::ascii(substr( $shp['details']['ticket_data']['origin']['company_name'],0,50));
+                $client = Str::ascii(substr($shp['details']['ticket_data']['origin']['company_name'], 0, 50));
                 $packagesCount = $shp['details']['ticket_data']['packages_count'];
                 $realWeight = $shp['details']['ticket_data']['real_weight'];
 
@@ -156,8 +156,8 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                     'country_code' => $this->country,
                     'location_code' => $location['location_code'],
                     'account' => $account,
-                    'amount_subtotal' => str_replace('.', '', number_format($shp['subtotal'], 2,'.','')),
-                    'amount' => str_replace('.', '', number_format($shp['total'], 2,'.','')),
+                    'amount_subtotal' => str_replace('.', '', number_format($shp['subtotal'], 2, '.', '')),
+                    'amount' => str_replace('.', '', number_format($shp['total'], 2, '.', '')),
                     'date' => $date->format('dmy'),
                     'shipment_tracking_number' => $shipmentTrackingNumber,
                     'number_receipt' => $numberReceipt,
@@ -187,8 +187,8 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                         'country_code' => $this->country,
                         'location_code' => $location['location_code'],
                         'account' => $account,
-                        'amount_subtotal' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['subtotal'], 2,'.','')),
-                        'amount' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['total'], 2,'.','')),
+                        'amount_subtotal' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['subtotal'], 2, '.', '')),
+                        'amount' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['total'], 2, '.', '')),
                         'date' => $date->format('dmy'),
                         'shipment_tracking_number' => $shipmentTrackingNumber,
                         'number_receipt' => $numberReceipt,
@@ -209,7 +209,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                 'country_code' => $this->country,
                 'location_code' => $location['location_code'],
                 'account' => $account,
-                'amount' => str_replace('.', '', number_format($ivaTotal,2,'.','')),
+                'amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
                 'date' => $date->format('dmy'),
                 'shipment_tracking_number' => $shipmentTrackingNumber,
                 'number_receipt' => $numberReceipt,
