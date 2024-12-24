@@ -233,7 +233,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
             ->first();
     }
 
-    protected function formatLine(
+    public function formatLine(
         string     $dateInfo,
         string     $numberReceipt,
         string     $origin,
