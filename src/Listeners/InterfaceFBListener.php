@@ -563,8 +563,10 @@ class InterfaceFBListener extends InterfaceBaseListener
         $fileContent = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
 
         $paymentAdjustments = Collect($payment['payment_adjustment'] ?? []);
+        dump($payment['fixed_details']['register_tolerance'] ?? null);
         if ($paymentAdjustments->count() > 0 &&
-            $paymentAdjustments->where('adjustment_type', 0)->count() > 0) {
+            $paymentAdjustments->where('adjustment_type', 0)->count() > 0 &&
+            ($payment['fixed_details']['register_tolerance'] ?? true)) {
             $tolerance = $paymentAdjustments->where('adjustment_type', 0)->first();
             if (round(abs($tolerance['amount']), 2) != 0.00) {
                 $line++;
@@ -796,7 +798,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $openItemsTotal = array_sum(array_column($openItems, 'payed_value'));
 
-        $openItemsLength = count($openItems);
+        $lastIndex = count($openItems) - 1;
 
         $paymentValues = [];
 
@@ -805,16 +807,16 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             foreach ($tmPayments as $payment) {
                 if ($factor == 1) { // one open item, one or several payments
-                    $amount = $payment['received'];
+                    $amount = $payment['amount'];
                 } else { // several open items
-                    if (($k + 1) == $openItemsLength) { // last open item
-                        $amount = $payment['received'] - $paymentValues[$payment['id']];
-                    } else {
-                        $amount = round($payment['received'] * $factor, 2);
+                    if ($k < $lastIndex) { // last open item
+                        $amount = round($payment['amount'] * $factor, 2);
                         $paymentValues[$payment['id']] = ($paymentValues[$payment['id']] ?? 0) + $amount;
+                    } else {
+                        $amount = $payment['amount'] - $paymentValues[$payment['id']];
                     }
                 }
-                $payment['received'] = $amount;
+                $payment['received'] = $k == 0 ? ($amount + (float)($payment['payment_adjustment'][0]['amount'] ?? 0)) : $amount;
                 $payment['amount'] = $amount;
                 $payment['fixed_details'] = [
                     'invoice_number' => $openItem['invoice_number'],
@@ -824,6 +826,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                     'account' => $openItem['account'],
                     'payed_value' => $openItem['payed_value'],
                     'kind' => 'openItem',
+                    'register_tolerance' => $k == 0,
                 ];
                 $paymentsReturn[] = $payment;
             }
