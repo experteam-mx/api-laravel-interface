@@ -87,7 +87,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
 
         foreach ($documents as $document) {
             $amount = $this->formatStringLength($document['amount'], 12);
-            $dateInfo = $document['type'] . $document['country_code'] . $document['location_code'] . $document['account'] . $document['date'] .
+            $dateInfo = $document['code'] . $document['country_code'] . $document['location_code'] . $document['account'] . $document['date'] .
                 $amount . $document['shipment_tracking_number'];
 
             $origin = $document['product_code'] . $document['origin'] . $document['destination'];
