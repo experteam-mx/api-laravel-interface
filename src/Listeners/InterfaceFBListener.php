@@ -563,7 +563,6 @@ class InterfaceFBListener extends InterfaceBaseListener
         $fileContent = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
 
         $paymentAdjustments = Collect($payment['payment_adjustment'] ?? []);
-        dump($payment['fixed_details']['register_tolerance'] ?? null);
         if ($paymentAdjustments->count() > 0 &&
             $paymentAdjustments->where('adjustment_type', 0)->count() > 0 &&
             ($payment['fixed_details']['register_tolerance'] ?? true)) {
