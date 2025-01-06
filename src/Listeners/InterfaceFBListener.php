@@ -396,7 +396,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $accountNumber = $this->getAccountNumber($payment);
 
-        $accountNumber = Str::padLeft($accountNumber, 10, '0');
+        $accountNumber = is_numeric($accountNumber)  ? Str::padLeft($accountNumber, 10, '0') : Str::padRight($accountNumber, 10, ' ');
         $paymentDueDate = Carbon::create($payment['due_date']);
         $total = $payment['amount'];
 
