@@ -333,8 +333,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $payments[$index + 1]['document_id'] != $payment['document_id']) {
                 $hInlineCount++;
 
-                $shipmentTrackingNumber = $this->getTrackingNumber($payment);
-                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $shipmentTrackingNumber, $location, true);
+                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
                 $countLines += $hInlineCount;
                 $hInlineCount = 0;
             }
@@ -413,6 +412,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 foreach ($this->getHeaderItems($document) as $item) {
                     if ($severalLines) {
                         $total = $this->getTotalAmountItems($document, $item);
+                        $allocationNumber = $this->formatStringLength($this->getTrackingNumber($payment), 18);
                     }
 
                     $customerPostalCode = $document['document']['customer_postal_code'] ?? $document['customer_postal_code'] ?? 'N/A';
