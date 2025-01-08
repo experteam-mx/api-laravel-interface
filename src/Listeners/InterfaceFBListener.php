@@ -332,7 +332,9 @@ class InterfaceFBListener extends InterfaceBaseListener
             if (!isset($payments[$index + 1]) ||
                 $payments[$index + 1]['document_id'] != $payment['document_id']) {
                 $hInlineCount++;
-                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
+
+                $shipmentTrackingNumber = $this->getTrackingNumber($payment);
+                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $shipmentTrackingNumber, $location, true);
                 $countLines += $hInlineCount;
                 $hInlineCount = 0;
             }
@@ -408,28 +410,31 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         if (empty($payment['fixed_details'])) {
             foreach ($payment['documents'] as $document) {
-                if ($severalLines) {
-                    $total = 0;
-                    foreach ($this->getHeaderItems($document) as $item) {
-                        $total += $this->getTotalAmountItems($document, $item);
+                foreach ($this->getHeaderItems($document) as $item) {
+                    if ($severalLines) {
+                        $total = $this->getTotalAmountItems($document, $item);
+                    }
+
+                    $customerPostalCode = $document['document']['customer_postal_code'] ?? $document['customer_postal_code'] ?? 'N/A';
+
+                    $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
+                        str_pad(
+                            number_format($total, 2, '.', ''),
+                            23, ' ', STR_PAD_LEFT) . //characters 27 to 49
+                        str_pad(" ", 43) . //characters 50 to 92
+                        $paymentDueDate->format('d.m.Y') . str_pad(" ", 22) . //characters 93 to 124
+                        $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
+                        $this->formatStringLength($document['document']['customer_company_name'] ?? $document['customer_company_name'], 35) . //characters 195 to 230
+                        $this->formatStringLength($document['document']['customer_address_line1'] ?? $document['customer_address_line1'], 35) . //characters 231 to 265
+                        $location['facility_code'] . //characters 266 to 268
+                        str_pad(" ", 32) . "$this->country $this->language" . $this->formatStringLength($customerPostalCode, 10) .
+                        $this->formatStringLength($document['document']['customer_identification_number'] ?? $document['customer_identification_number'] ?? '', 16) .
+                        "    $regionCode" . PHP_EOL;
+
+                    if (!$severalLines) {
+                        break;
                     }
                 }
-
-                $customerPostalCode = $document['document']['customer_postal_code'] ?? $document['customer_postal_code'] ?? 'N/A';
-
-                $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
-                    str_pad(
-                        number_format($total, 2, '.', ''),
-                        23, ' ', STR_PAD_LEFT) . //characters 27 to 49
-                    str_pad(" ", 43) . //characters 50 to 92
-                    $paymentDueDate->format('d.m.Y') . str_pad(" ", 22) . //characters 93 to 124
-                    $allocationNumber . str_pad(" ", 52) . //characters 125 to 195
-                    $this->formatStringLength($document['document']['customer_company_name'] ?? $document['customer_company_name'], 35) . //characters 195 to 230
-                    $this->formatStringLength($document['document']['customer_address_line1'] ?? $document['customer_address_line1'], 35) . //characters 231 to 265
-                    $location['facility_code'] . //characters 266 to 268
-                    str_pad(" ", 32) . "$this->country $this->language" . $this->formatStringLength($customerPostalCode, 10) .
-                    $this->formatStringLength($document['document']['customer_identification_number'] ?? $document['customer_identification_number'] ?? '', 16) .
-                    "    $regionCode" . PHP_EOL;
             }
         } else {
             if ($severalLines) {
