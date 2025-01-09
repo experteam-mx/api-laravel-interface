@@ -333,7 +333,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $payments[$index + 1]['document_id'] != $payment['document_id']) {
                 $hInlineCount++;
 
-                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, ' ', $location, true);
+                $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $location, true);
                 $countLines += $hInlineCount;
                 $hInlineCount = 0;
             }
@@ -390,11 +390,8 @@ class InterfaceFBListener extends InterfaceBaseListener
             $allocationNumber . $itemText . " " . PHP_EOL;
     }
 
-    public function formatCUSLine($payment, $hInlineCount, $allocationNumber, $location, bool $severalLines = false): string
+    public function formatCUSLine($payment, $hInlineCount, $location, bool $severalLines = false): string
     {
-
-        $allocationNumber = $this->formatStringLength($allocationNumber, 18);
-
         $accountNumber = $this->getAccountNumber($payment);
 
         $accountNumber = is_numeric($accountNumber)  ? Str::padLeft($accountNumber, 10, '0') : Str::padRight($accountNumber, 10, ' ');
@@ -412,8 +409,8 @@ class InterfaceFBListener extends InterfaceBaseListener
                 foreach ($this->getHeaderItems($document) as $item) {
                     if ($severalLines) {
                         $total = $this->getTotalAmountItems($document, $item);
-                        $allocationNumber = $this->formatStringLength($this->getTrackingNumber($payment), 18);
                     }
+                    $allocationNumber = $this->formatStringLength($item['details']['header']['awbNumber'], 18);
 
                     $customerPostalCode = $document['document']['customer_postal_code'] ?? $document['customer_postal_code'] ?? 'N/A';
 
@@ -440,7 +437,9 @@ class InterfaceFBListener extends InterfaceBaseListener
             if ($severalLines) {
                 $total ??= $payment['fixed_details']['payed_value'];
             }
-            $allocationNumber = ($payment['fixed_details']['kind'] == 'openItem') ? $allocationNumber : $this->formatStringLength('ABONO', 18);
+            $allocationNumber = $this->formatStringLength(($payment['fixed_details']['kind'] == 'openItem') ?
+                $this->getTrackingNumber($payment) :
+                'ABONO', 18);
             $facilityCode = ($payment['fixed_details']['kind'] == 'openItem') ? $location['facility_code'] : '.  ';
             $content .= "CUS" . sprintf("%010d", $hInlineCount) . "15" . $accountNumber . " " . //characters 1 to 26
                 str_pad(
@@ -475,9 +474,8 @@ class InterfaceFBListener extends InterfaceBaseListener
             [$returnFileContent, $returnLine] = $this->cashAndCheckLine($payment, $location, 0);
             $fileContent .= $returnFileContent;
 
-            $allocationNumber = $this->getTrackingNumber($payment);
             $hInlineCount = $returnLine + 1;
-            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $allocationNumber, $location);
+            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $location);
             $countLines += $hInlineCount;
         }
 
@@ -499,10 +497,8 @@ class InterfaceFBListener extends InterfaceBaseListener
             [$returnFileContent, $returnLine] = $this->creditDebitCardLine($payment, $location, 0);
             $fileContent .= $returnFileContent;
 
-            $allocationNumber = $this->getTrackingNumber($payment);
-
             $hInlineCount = $returnLine + 1;
-            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $allocationNumber, $location);
+            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $location);
             $countLines += $hInlineCount;
         }
 
@@ -524,10 +520,8 @@ class InterfaceFBListener extends InterfaceBaseListener
             [$returnFileContent, $returnLine] = $this->electronicTransferAndDepositLine($payment, $location, 0);
             $fileContent .= $returnFileContent;
 
-            $allocationNumber = $this->getTrackingNumber($payment);
-
             $hInlineCount = $returnLine + 1;
-            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $allocationNumber, $location);
+            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $location);
             $countLines += $hInlineCount;
         }
 
