@@ -224,7 +224,6 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                     'packages_count' => null,
                     'real_weight' => null,
                 ];
-
             }
         }
 

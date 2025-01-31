@@ -110,7 +110,6 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
                 ];
             }
         }
-
         return $result;
     }
 
@@ -138,7 +137,6 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
         }
 
         $this->setLogLine("Get general file");
-
         return $fileContent;
     }
 
