@@ -124,14 +124,19 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
             if (empty($shipment))
                 continue;
 
-            $shpCompanyCountryExtraCharges = $this->getShipmentItems($document, $shipment[0]);
+            $countShipment = count($shipment);
             $date = Carbon::create($document['created_at']);
 
             $ivaTotal = 0;
             $numberReceipt = $document['document_prefix'] . $document['document_number'];
             $shipmentTrackingNumber = $account = $productCode = $origin = $destination = $client = $realWeight = null;
 
-            foreach ($shipment as $shp) {
+            foreach ($shipment as $key => $shp) {
+                if ($countShipment > 1) {
+                    $numberInLetter = chr(65 + $key);
+                    $numberReceipt = $document['document_prefix'] . $document['document_number'] . '-' . $numberInLetter;
+                }
+                $shpCompanyCountryExtraCharges = $this->getShipmentItems($document, $shp);
 
                 $productCode = $shp['details']['code'];
                 $shipmentTrackingNumber = $shp['details']['header']['awbNumber'];
@@ -168,58 +173,59 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                     'packages_count' => $packagesCount,
                     'real_weight' => $realWeight,
                 ];
-            }
 
-            if (!empty($shpCompanyCountryExtraCharges)) {
+                if (!empty($shpCompanyCountryExtraCharges)) {
 
-                foreach ($shpCompanyCountryExtraCharges as $shpCompanyCountryExtraCharge) {
+                    foreach ($shpCompanyCountryExtraCharges as $shpCompanyCountryExtraCharge) {
 
-                    if (!empty($shp['tax_detail'])) {
-                        $iva = $this->getTaxIva($shp['tax_detail']);
-                        if (!is_null($iva)) {
-                            $ivaTotal += (float)$iva['tax_total'];
+                        if (!empty($shp['tax_detail'])) {
+                            $iva = $this->getTaxIva($shp['tax_detail']);
+                            if (!is_null($iva)) {
+                                $ivaTotal += (float)$iva['tax_total'];
+                            }
                         }
+
+                        $result[] = [
+                            'type' => 'ExtraCharge',
+                            'code' => $shpCompanyCountryExtraCharge['details']['code'],
+                            'country_code' => $this->country,
+                            'location_code' => $location['location_code'],
+                            'account' => $account,
+                            'amount_subtotal' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['subtotal'], 2, '.', '')),
+                            'amount' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['total'], 2, '.', '')),
+                            'date' => $date->format('dmy'),
+                            'shipment_tracking_number' => $shipmentTrackingNumber,
+                            'number_receipt' => $numberReceipt,
+                            'product_code' => $productCode,
+                            'origin' => $origin,
+                            'destination' => $destination,
+                            'client' => $client,
+                            'packages_count' => null,
+                            'real_weight' => null,
+                        ];
+
                     }
-
-                    $result[] = [
-                        'type' => 'ExtraCharge',
-                        'code' => $shpCompanyCountryExtraCharge['details']['code'],
-                        'country_code' => $this->country,
-                        'location_code' => $location['location_code'],
-                        'account' => $account,
-                        'amount_subtotal' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['subtotal'], 2, '.', '')),
-                        'amount' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['total'], 2, '.', '')),
-                        'date' => $date->format('dmy'),
-                        'shipment_tracking_number' => $shipmentTrackingNumber,
-                        'number_receipt' => $numberReceipt,
-                        'product_code' => $productCode,
-                        'origin' => $origin,
-                        'destination' => $destination,
-                        'client' => $client,
-                        'packages_count' => null,
-                        'real_weight' => null,
-                    ];
-
                 }
-            }
 
-            $result[] = [
-                'type' => 'Tax',
-                'code' => 'IV',
-                'country_code' => $this->country,
-                'location_code' => $location['location_code'],
-                'account' => $account,
-                'amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
-                'date' => $date->format('dmy'),
-                'shipment_tracking_number' => $shipmentTrackingNumber,
-                'number_receipt' => $numberReceipt,
-                'product_code' => $productCode,
-                'origin' => $origin,
-                'destination' => $destination,
-                'client' => $client,
-                'packages_count' => null,
-                'real_weight' => null,
-            ];
+                $result[] = [
+                    'type' => 'Tax',
+                    'code' => 'IV',
+                    'country_code' => $this->country,
+                    'location_code' => $location['location_code'],
+                    'account' => $account,
+                    'amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
+                    'date' => $date->format('dmy'),
+                    'shipment_tracking_number' => $shipmentTrackingNumber,
+                    'number_receipt' => $numberReceipt,
+                    'product_code' => $productCode,
+                    'origin' => $origin,
+                    'destination' => $destination,
+                    'client' => $client,
+                    'packages_count' => null,
+                    'real_weight' => null,
+                ];
+
+            }
         }
 
 
@@ -243,11 +249,11 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
     ): string
     {
         if (is_null($realWeight)) {
-            return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 11)
+            return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 10)
                 . str_pad($client, 107)
                 . PHP_EOL;
         } else {
-            return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 11)
+            return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 10)
                 . str_pad($client, 76) . str_pad(1, 5)
                 . str_pad($packagesCount, 5) . str_pad(number_format($realWeight, 2), 21)
                 . PHP_EOL;
