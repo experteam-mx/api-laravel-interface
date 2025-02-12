@@ -2,6 +2,7 @@
 
 namespace Experteam\ApiLaravelInterface\Commands;
 
+use Experteam\ApiLaravelBase\Facades\BusinessDaysFacade;
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
 use Illuminate\Console\Command;
@@ -78,7 +79,7 @@ abstract class GenerateInterfacesCommand extends Command
             ])
         ];
 
-        $range = $this->waitStartOfTheMonth();
+        $range = $this->waitBankReference();
 
         if (!is_null($range) && !empty($this->bankReferenceInterfaceFiles)) {
             $interfaceRequests[] = InterfaceRequest::create([
@@ -116,9 +117,12 @@ abstract class GenerateInterfacesCommand extends Command
 
     public function waitBankReference(): ?array
     {
+        $dates = BusinessDaysFacade::getDays($this->waitDays);
+
+        if (is_null($dates)) return null;
         return [
-            'from' => Carbon::yesterday()->startOfDay(),
-            'to' => Carbon::yesterday()->endOfDay()
+            'from' => Carbon::parse($dates['start'])->startOfDay(),
+            'to' => Carbon::parse($dates['start'])->endOfDay()
         ];
     }
 
