@@ -53,17 +53,22 @@ class InterfaceBaseListener
         $start = clone $from;
         $end = clone $to;
 
+        $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
+        $this->start = $this->getDatetimeGmt($start)->format('Y-m-d H:i:s');
+
+        $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
+
+        return true;
+    }
+
+    public function getCatalogs(): void
+    {
         $country = json_decode(Redis::hget('catalogs.country.code', $this->country), true);
         $this->countryId = $country['id'];
 
         $this->setLogLine("Get " . $this->country . " country id " . $this->countryId);
 
         $this->countryGmtOffset = $country['timezone'];
-
-        $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
-        $this->start = $this->getDatetimeGmt($start)->format('Y-m-d H:i:s');
-
-        $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
 
         $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.company-countries.get_all'), [
@@ -74,8 +79,6 @@ class InterfaceBaseListener
         $this->companyCountryId = $companyCountries['company_countries'][0]['id'];
 
         $this->setLogLine("Get company country id " . $this->companyCountryId);
-
-        return true;
     }
 
     protected function getLocation($installationId)

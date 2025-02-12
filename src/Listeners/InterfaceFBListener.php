@@ -4,6 +4,7 @@ namespace Experteam\ApiLaravelInterface\Listeners;
 
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
+use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Carbon;
@@ -123,39 +124,6 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $payments = $this->verifyOpenItems($payments);
 
-        $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
-            ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
-                'country_id' => $this->countryId,
-            ]);
-
-        foreach ($countryPaymentTypesResponse['country_payment_types'] as $countryPaymentType) {
-            $this->countryPaymentTypes[$countryPaymentType['name']] = $countryPaymentType['id'];
-        }
-
-        $this->setLogLine("Get Country Payment Type ids " . json_encode($this->countryPaymentTypes));
-
-        $countryPaymentTypeFieldAccountsResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
-            ->get(config('experteam-crud.invoices.payment_type_field_accounts.get_all'), [
-                'country_payment_type_field@country_payment_type_id' => [
-                    'in' => implode(',',array_values($this->countryPaymentTypes))
-                ],
-                'limit' => 500,
-            ]);
-
-        $this->countryPaymentTypeFieldAccounts = Collect($countryPaymentTypeFieldAccountsResponse['country_payment_type_field_accounts']);
-        $this->setLogLine("Get Country Payment Type Field Accounts");
-
-        $countryPaymentTypeFieldCardTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
-            ->get(config('experteam-crud.invoices.payment_type_field_card_types.get_all'), [
-                'country_payment_type_field@country_payment_type_id' => [
-                    'in' => implode(',', array_values($this->countryPaymentTypes))
-                ],
-                'limit' => 500,
-            ]);
-
-        $this->countryPaymentTypeFieldCartTypes = Collect($countryPaymentTypeFieldCardTypesResponse['country_payment_type_field_card_types']);
-        $this->setLogLine("Get Country Payment Type Field Card Types");
-
         return [
             'success' => true,
             'payments' => $payments,
@@ -181,33 +149,44 @@ class InterfaceFBListener extends InterfaceBaseListener
             $payments = $paymentResponse['payments'];
 
             $response = ['success' => true, 'message' => '', 'detail' => []];
-            $cashFile = $this->cashAndCheckFile(
-                $payments->whereIn('country_payment_type_id',
-                    $this->getPaymentTypeIds($this->cashAndCheckPaymentTypes)
-                )
-            );
 
-            $this->setLogLine("Get cash and check file");
+            if (empty($event->interfaceRequest->extras)
+                || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles'])) {
+                $cashFile = $this->cashAndCheckFile(
+                    $payments->whereIn('country_payment_type_id',
+                        $this->getPaymentTypeIds($this->cashAndCheckPaymentTypes)
+                    )
+                );
 
-            $creditDebitCardFile = $this->creditDebitCardFile(
-                $payments->whereIn('country_payment_type_id',
-                    $this->getPaymentTypeIds($this->creditDebitCardPaymentTypes)
-                )
-            );
+                $this->setLogLine("Get cash and check file");
+            }
 
-            $this->setLogLine("Get credit and debit card file");
+            if (empty($event->interfaceRequest->extras)
+                || in_array('creditAndDebitCard', $event->interfaceRequest->extras['interfaceFiles'])) {
+                $creditDebitCardFile = $this->creditDebitCardFile(
+                    $payments->whereIn('country_payment_type_id',
+                        $this->getPaymentTypeIds($this->creditDebitCardPaymentTypes)
+                    )
+                );
 
-            $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
-                $payments->whereIn('country_payment_type_id',
-                    $this->getPaymentTypeIds($this->electronicTransferAndDepositPaymentTypes)
-                )
-            );
+                $this->setLogLine("Get credit and debit card file");
+            }
 
-            $this->setLogLine("Get electronic transfer and deposit file");
+            if (empty($event->interfaceRequest->extras)
+                || in_array('transferAndDeposit', $event->interfaceRequest->extras['interfaceFiles'])) {
+                $electronicTransferAndDepositFile = $this->electronicTransferAndDepositFile(
+                    $payments->whereIn('country_payment_type_id',
+                        $this->getPaymentTypeIds($this->electronicTransferAndDepositPaymentTypes)
+                    )
+                );
+
+                $this->setLogLine("Get electronic transfer and deposit file");
+            }
 
             $actualDateTime = Carbon::now()->format('YmdHis');
 
-            if (!is_null($cashFile)) {
+            if (!is_null($cashFile) && (empty($event->interfaceRequest->extras)
+                || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending cash and check file");
                 $this->saveAndSentInterface(
                     $cashFile,
@@ -218,7 +197,8 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("No payments in Cash or Check");
             }
 
-            if (!is_null($creditDebitCardFile)) {
+            if (!is_null($creditDebitCardFile) && (empty($event->interfaceRequest->extras)
+                    || in_array('creditAndDebitCard', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending Credit and Debit Card file");
                 $this->saveAndSentInterface(
                     $creditDebitCardFile,
@@ -229,7 +209,8 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("No payments in Credit or Debit Card");
             }
 
-            if (!is_null($electronicTransferAndDepositFile)) {
+            if (!is_null($electronicTransferAndDepositFile) && (empty($event->interfaceRequest->extras)
+                    || in_array('transferAndDeposit', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending Electronic Transfer and Deposit file");
                 $this->saveAndSentInterface(
                     $electronicTransferAndDepositFile,
@@ -280,6 +261,44 @@ class InterfaceFBListener extends InterfaceBaseListener
         }
 
         return $response;
+    }
+
+    public function getCatalogs(): void
+    {
+        parent::getCatalogs();
+
+        $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+            ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
+                'country_id' => $this->countryId,
+            ]);
+
+        foreach ($countryPaymentTypesResponse['country_payment_types'] as $countryPaymentType) {
+            $this->countryPaymentTypes[$countryPaymentType['name']] = $countryPaymentType['id'];
+        }
+
+        $this->setLogLine("Get Country Payment Type ids " . json_encode($this->countryPaymentTypes));
+
+        $countryPaymentTypeFieldAccountsResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+            ->get(config('experteam-crud.invoices.payment_type_field_accounts.get_all'), [
+                'country_payment_type_field@country_payment_type_id' => [
+                    'in' => implode(',',array_values($this->countryPaymentTypes))
+                ],
+                'limit' => 500,
+            ]);
+
+        $this->countryPaymentTypeFieldAccounts = Collect($countryPaymentTypeFieldAccountsResponse['country_payment_type_field_accounts']);
+        $this->setLogLine("Get Country Payment Type Field Accounts");
+
+        $countryPaymentTypeFieldCardTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+            ->get(config('experteam-crud.invoices.payment_type_field_card_types.get_all'), [
+                'country_payment_type_field@country_payment_type_id' => [
+                    'in' => implode(',', array_values($this->countryPaymentTypes))
+                ],
+                'limit' => 500,
+            ]);
+
+        $this->countryPaymentTypeFieldCartTypes = Collect($countryPaymentTypeFieldCardTypesResponse['country_payment_type_field_card_types']);
+        $this->setLogLine("Get Country Payment Type Field Card Types");
     }
 
     public function getSingleFileContent($payments): string
@@ -752,7 +771,7 @@ class InterfaceFBListener extends InterfaceBaseListener
             $item = $payment['documents'][0]['items'][0];
 
             if ($item['model_type'] == 'OpenItem') {
-                /** Filter same document payments to divide all payments across al documents */
+                /** Filter same document payments to divide all payments across all documents */
                 if (!empty($openItemsPayment[$payment['id']])) {
                     unset($openItemsPayment[$payment['id']]);
                     continue;

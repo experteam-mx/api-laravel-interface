@@ -2,13 +2,18 @@
 
 namespace Experteam\ApiLaravelInterface\Commands;
 
+use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 
 abstract class GenerateInterfacesCommand extends Command
 {
+    protected string $country = "";
     public int $startDayOfMonth = 1;
+    public int $waitDays = 1;
+    public array $bankReferenceInterfaceFiles = [];
+    public array $notBankReferenceInterfaceFiles = InterfaceRequest::INTERFACE_FILE_TYPES;
 
     public function getInterfaceRequest(?string $interfaceType = null): ?InterfaceRequest
     {
@@ -16,32 +21,155 @@ abstract class GenerateInterfacesCommand extends Command
         $to = $this->option('to');
         $toSftp = $this->option('toSftp');
 
-        if (is_null($from) && is_null($to) && Carbon::now()->format('d') != 1 && $this->startDayOfMonth != 1) {
-
-            if (Carbon::now()->format('d') < $this->startDayOfMonth) {
-                return null;
-            } elseif (Carbon::now()->format('d') == $this->startDayOfMonth) {
-                $from = Carbon::now()->startOfMonth()->startOfDay();
-                $to = Carbon::yesterday()->endOfDay();
-            } else {
-                $from = Carbon::yesterday()->startOfDay();
-                $to = Carbon::yesterday()->endOfDay();
-            }
-
+        if (!is_null($from) && !is_null($to)) {
+            $range = [
+                'from' => Carbon::create($from),
+                'to' => Carbon::create($to)
+            ];
         } else {
-            $from = !is_null($from) ? Carbon::create($from) : Carbon::yesterday()->startOfDay();
-            $to = !is_null($to) ? Carbon::create($to) : Carbon::yesterday()->endOfDay();
+            $this->getParameters();
+            $range = $this->waitStartOfTheMonth();
+            if (is_null($range)) return null;
         }
 
         $toSftp = is_null($toSftp) || $toSftp == 'true';
 
         return InterfaceRequest::create([
-            'from' => $from->format('Y-m-d H:i:s'),
-            'to' => $to->format('Y-m-d H:i:s'),
+            'from' => $range['from']->format('Y-m-d H:i:s'),
+            'to' => $range['to']->format('Y-m-d H:i:s'),
             'transaction_id' => \Str::orderedUuid()->toString(),
             'status' => 0,
             'to_sftp' => $toSftp,
             'type' => $interfaceType,
         ]);
+    }
+
+    public function getPaymentInterfaceRequests(): ?array
+    {
+        $from = $this->option('from');
+        $to = $this->option('to');
+        $toSftp = $this->option('toSftp');
+        $toSftp = is_null($toSftp) || $toSftp == 'true';
+
+        if (!is_null($from) && !is_null($to)) {
+            return [InterfaceRequest::create([
+                'from' => Carbon::create($from)->format('Y-m-d H:i:s'),
+                'to' => Carbon::create($to)->format('Y-m-d H:i:s'),
+                'transaction_id' => \Str::orderedUuid()->toString(),
+                'status' => 0,
+                'to_sftp' => $toSftp,
+                'type' => null
+            ])];
+        }
+
+        $this->getParameters();
+
+        $interfaceRequests = [
+            InterfaceRequest::create([
+                'from' => Carbon::startOfMonth()->startOfDay()->format('Y-m-d H:i:s'),
+                'to' => Carbon::yesterday()->endOfDay()->format('Y-m-d H:i:s'),
+                'transaction_id' => \Str::orderedUuid()->toString(),
+                'status' => 0,
+                'to_sftp' => $toSftp,
+                'type' => null,
+                'extras' => [
+                    'interfaceFiles' => $this->notBankReferenceInterfaceFiles
+                ],
+            ])
+        ];
+
+        $range = $this->waitStartOfTheMonth();
+
+        if (!is_null($range) && !empty($this->bankReferenceInterfaceFiles)) {
+            $interfaceRequests[] = InterfaceRequest::create([
+                'from' => $range['from']->format('Y-m-d H:i:s'),
+                'to' => $range['to']->format('Y-m-d H:i:s'),
+                'transaction_id' => \Str::orderedUuid()->toString(),
+                'status' => 0,
+                'to_sftp' => $toSftp,
+                'type' => null,
+                'extras' => [
+                    'interfaceFiles' => $this->bankReferenceInterfaceFiles
+                ],
+            ]);
+        }
+
+        return $interfaceRequests;
+    }
+
+    public function waitStartOfTheMonth(): ?array
+    {
+        if (Carbon::now()->format('d') < $this->startDayOfMonth) {
+            return null;
+        } elseif (Carbon::now()->format('d') == $this->startDayOfMonth && $this->startDayOfMonth != 1) {
+            return [
+                'from' => Carbon::startOfMonth()->startOfDay(),
+                'to' => Carbon::yesterday()->endOfDay()
+            ];
+        }
+
+        return [
+            'from' => Carbon::yesterday()->startOfDay(),
+            'to' => Carbon::yesterday()->endOfDay()
+        ];
+    }
+
+    public function waitBankReference(): ?array
+    {
+        return [
+            'from' => Carbon::yesterday()->startOfDay(),
+            'to' => Carbon::yesterday()->endOfDay()
+        ];
+    }
+
+    public function getParameters(): void
+    {
+        $country = json_decode(Redis::hget('catalogs.country.code', $this->country), true);
+
+        $parametersResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
+            ->post(config('experteam-crud.parameter_values.post'), [
+                'parameters' => [
+                    [
+                        'name' => 'INTERFACES_BANK_REFERENCE_FILES',
+                        'model_type' => 'Country',
+                        'model_id' => $country['id']
+                    ],
+                    [
+                        'name' => 'INTERFACES_BANK_REFERENCE_WAIT_DAYS',
+                        'model_type' => 'Country',
+                        'model_id' => $country['id']
+                    ]
+                ]
+            ]);
+
+        $this->console->writeLine("Parameters response: " . json_encode($parametersResponse));
+
+        foreach ($parametersResponse['parameters'] as $parameter) {
+            if ($parameter['model_id'] != $country['id']) {
+                return;
+            }
+
+            switch ($parameter['name']) {
+                case 'INTERFACES_BANK_REFERENCE_FILES':
+                    if (!empty($parameter['value'])) {
+                        $this->bankReferenceInterfaceFiles = $parameter['value'];
+                        $this->setNotBankReferenceInterfaceFiles();
+                    }
+                    break;
+                case 'INTERFACES_BANK_REFERENCE_WAIT_DAYS':
+                    $this->waitDays = $parameter['value'];
+                    break;
+            }
+        }
+    }
+
+    public function setNotBankReferenceInterfaceFiles(): void
+    {
+        foreach ($this->bankReferenceInterfaceFiles as $interfaceFile) {
+            $key = array_search($interfaceFile, $this->notBankReferenceInterfaceFiles, true);
+            if ($key === false)
+                continue;
+            unset($this->notBankReferenceInterfaceFiles[$key]);
+        }
     }
 }
