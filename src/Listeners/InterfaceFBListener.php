@@ -726,7 +726,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     protected function getTrackingNumber($payment): string
     {
-        return $payment['fixed_details']['shipment_tracking_number'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'];
+        return $payment['fixed_details']['shipment_tracking_number'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'] ?? '';
     }
 
     protected function getAccountNumber($payment)
