@@ -156,7 +156,13 @@ abstract class GenerateInterfacesCommand extends Command
             switch ($parameter['name']) {
                 case 'INTERFACES_BANK_REFERENCE_FILES':
                     if (!empty($parameter['value'])) {
-                        $this->bankReferenceInterfaceFiles = $parameter['value'];
+                        $bankReferenceInterfaceFiles = [];
+                        foreach ($parameter['value'] as $interfaceFile => $isActive) {
+                            if ($isActive) {
+                                $bankReferenceInterfaceFiles[] = $interfaceFile;
+                            }
+                        }
+                        $this->bankReferenceInterfaceFiles = $bankReferenceInterfaceFiles;
                         $this->setNotBankReferenceInterfaceFiles();
                     }
                     break;
