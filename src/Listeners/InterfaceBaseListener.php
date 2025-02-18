@@ -58,6 +58,8 @@ class InterfaceBaseListener
 
         $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
 
+        $this->getCatalogs();
+
         return true;
     }
 

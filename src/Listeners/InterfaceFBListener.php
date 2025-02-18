@@ -185,8 +185,8 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             $actualDateTime = Carbon::now()->format('YmdHis');
 
-            if (!is_null($cashFile) && (empty($event->interfaceRequest->extras)
-                || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles']))) {
+            if (!empty($cashFile) && (empty($event->interfaceRequest->extras)
+                    || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending cash and check file");
                 $this->saveAndSentInterface(
                     $cashFile,
@@ -197,7 +197,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("No payments in Cash or Check");
             }
 
-            if (!is_null($creditDebitCardFile) && (empty($event->interfaceRequest->extras)
+            if (!empty($creditDebitCardFile) && (empty($event->interfaceRequest->extras)
                     || in_array('creditAndDebitCard', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending Credit and Debit Card file");
                 $this->saveAndSentInterface(
@@ -209,7 +209,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("No payments in Credit or Debit Card");
             }
 
-            if (!is_null($electronicTransferAndDepositFile) && (empty($event->interfaceRequest->extras)
+            if (!empty($electronicTransferAndDepositFile) && (empty($event->interfaceRequest->extras)
                     || in_array('transferAndDeposit', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending Electronic Transfer and Deposit file");
                 $this->saveAndSentInterface(

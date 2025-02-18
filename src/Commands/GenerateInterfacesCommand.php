@@ -7,6 +7,7 @@ use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Redis;
 
 abstract class GenerateInterfacesCommand extends Command
 {
@@ -67,7 +68,7 @@ abstract class GenerateInterfacesCommand extends Command
 
         $interfaceRequests = [
             InterfaceRequest::create([
-                'from' => Carbon::startOfMonth()->startOfDay()->format('Y-m-d H:i:s'),
+                'from' => Carbon::yesterday()->startOfDay()->format('Y-m-d H:i:s'),
                 'to' => Carbon::yesterday()->endOfDay()->format('Y-m-d H:i:s'),
                 'transaction_id' => \Str::orderedUuid()->toString(),
                 'status' => 0,
@@ -128,10 +129,11 @@ abstract class GenerateInterfacesCommand extends Command
 
     public function getParameters(): void
     {
+        if (empty($this->country)) return;
         $country = json_decode(Redis::hget('catalogs.country.code', $this->country), true);
 
         $parametersResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
-            ->post(config('experteam-crud.parameter_values.post'), [
+            ->post(config('experteam-crud.companies.parameter_values.post'), [
                 'parameters' => [
                     [
                         'name' => 'INTERFACES_BANK_REFERENCE_FILES',
@@ -146,7 +148,7 @@ abstract class GenerateInterfacesCommand extends Command
                 ]
             ]);
 
-        $this->console->writeLine("Parameters response: " . json_encode($parametersResponse));
+        $this->getOutput()->writeln("Parameters response: " . json_encode($parametersResponse));
 
         foreach ($parametersResponse['parameters'] as $parameter) {
             if ($parameter['model_id'] != $country['id']) {
