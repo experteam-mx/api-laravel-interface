@@ -15,6 +15,7 @@ use MongoDB\Laravel\Query\Builder;
  * @property int $status
  * @property string|null $message
  * @property mixed|null $detail
+ * @property mixed|null $extras
  * @property Carbon|null $from
  * @property Carbon|null $to
  * @property bool|null $to_sftp
@@ -32,6 +33,13 @@ class InterfaceRequest extends BaseModel
 {
     use HasFactory;
 
+    const INTERFACE_FILE_TYPES = [
+        'cashAndCheck',
+        'creditAndDebitCard',
+        'transferAndDeposit',
+        'electronicPayment',
+    ];
+
     protected $table = 'interface_request';
 
     protected $fillable = [
@@ -42,6 +50,7 @@ class InterfaceRequest extends BaseModel
         'to_sftp',
         'message',
         'detail',
+        'extras',
         'type'
     ];
 
