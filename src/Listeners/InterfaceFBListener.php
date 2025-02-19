@@ -454,7 +454,7 @@ class InterfaceFBListener extends InterfaceBaseListener
             }
         } else {
             if ($severalLines) {
-                $total ??= $payment['fixed_details']['payed_value'];
+                $total = $payment['fixed_details']['payed_value'];
             }
             $allocationNumber = $this->formatStringLength(($payment['fixed_details']['kind'] == 'openItem') ?
                 $this->getTrackingNumber($payment) :
@@ -793,6 +793,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                     'shipment_tracking_number' => '.',
                     'customer_identification_number' => '.',
                     'customer_company_name' => '.',
+                    'payed_value' => $item['total'],
                     'account' => $payment['documents'][0]['items'][0]['details']['account'],
                     'kind' => 'accountCollection',
                 ];
