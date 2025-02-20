@@ -263,9 +263,9 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $response;
     }
 
-    public function getCatalogs(): void
+    public function getCatalogs(?string $company = null): void
     {
-        parent::getCatalogs();
+        parent::getCatalogs($company);
 
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [

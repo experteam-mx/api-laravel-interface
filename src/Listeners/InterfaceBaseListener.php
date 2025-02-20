@@ -58,12 +58,12 @@ class InterfaceBaseListener
 
         $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
 
-        $this->getCatalogs();
+        $this->getCatalogs($event->company);
 
         return true;
     }
 
-    public function getCatalogs(): void
+    public function getCatalogs(?string $company = null): void
     {
         $country = json_decode(Redis::hget('catalogs.country.code', $this->country), true);
         $this->countryId = $country['id'];
@@ -75,7 +75,7 @@ class InterfaceBaseListener
         $companyCountries = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.company-countries.get_all'), [
                 'country_id' => $this->countryId,
-                'company@name' => $event->company ?? 'DHL'
+                'company@name' => $company ?? 'DHL'
             ]);
 
         $this->companyCountryId = $companyCountries['company_countries'][0]['id'];
