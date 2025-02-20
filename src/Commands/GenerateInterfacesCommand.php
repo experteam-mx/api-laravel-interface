@@ -66,6 +66,22 @@ abstract class GenerateInterfacesCommand extends Command
 
         $this->getParameters();
 
+        if (empty($this->bankReferenceInterfaceFiles)) {
+            $range = $this->waitStartOfTheMonth();
+            if (is_null($range)) return null;
+
+            return [
+                InterfaceRequest::create([
+                    'from' => $range['from']->format('Y-m-d H:i:s'),
+                    'to' => $range['to']->format('Y-m-d H:i:s'),
+                    'transaction_id' => \Str::orderedUuid()->toString(),
+                    'status' => 0,
+                    'to_sftp' => $toSftp,
+                    'type' => null,
+                ])
+            ];
+        }
+
         $interfaceRequests = [
             InterfaceRequest::create([
                 'from' => Carbon::yesterday()->startOfDay()->format('Y-m-d H:i:s'),
@@ -152,7 +168,7 @@ abstract class GenerateInterfacesCommand extends Command
 
         foreach ($parametersResponse['parameters'] as $parameter) {
             if ($parameter['model_id'] != $country['id']) {
-                return;
+                continue;
             }
 
             switch ($parameter['name']) {
@@ -170,6 +186,10 @@ abstract class GenerateInterfacesCommand extends Command
                     break;
                 case 'INTERFACES_BANK_REFERENCE_WAIT_DAYS':
                     $this->waitDays = $parameter['value'];
+                    break;
+                case 'INTERFACES_START_DAY_OF_MONTH':
+                    $month = \Str::ucfirst(Carbon::now()->format('M'));
+                    $this->startDayOfMonth = $parameter['value'][$month] ?? 1;
                     break;
             }
         }
