@@ -164,7 +164,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 $origin = $shp['details']['ticket_data']['origin_service_area_code'];
                 $destination = $shp['details']['ticket_data']['destination_service_area_code'];
                 $client = Str::ascii(substr($shp['details']['ticket_data']['origin']['company_name'], 0, 50));
-                $packagesCount = $shp['details']['ticket_data']['packages_count'];
+                $packagesCount = count($shp['details']['header']['pieces']);
                 $realWeight = $shp['details']['ticket_data']['real_weight'];
 
                 if (!empty($shp['tax_detail'])) {
