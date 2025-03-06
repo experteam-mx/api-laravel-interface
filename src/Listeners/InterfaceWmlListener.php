@@ -90,8 +90,6 @@ class InterfaceWmlListener extends InterfaceBaseListener
         $fileContent = '';
 
         foreach ($documents as $document) {
-            if ($document['type'] == 'Tax' && !$useTax)
-                continue;
 
             $code = ($document['type'] == 'Product') ? '9F' : $document['code'];
 
@@ -104,13 +102,22 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 $amount . $document['date'] . $document['number_receipt'];
 
             $origin = $document['product_code'] . $document['origin'] . $document['destination'];
+
+            if ($useTax) {
+                $taxInfo = str_pad('', 13, ' ', STR_PAD_LEFT) . str_pad('', 5,' ', STR_PAD_LEFT) . $document['tax_code'];
+
+            } else {
+                $taxInfo = str_pad('', 20);
+            }
+
             $fileContent .= $this->formatLine(
                 $dateInfo,
                 $document['shipment_tracking_number'],
                 $origin,
                 $document['client'],
                 $document['packages_count'],
-                ($document['real_weight']) ?? null
+                ($document['real_weight']) ?? null,
+                $taxInfo
             );
         }
 
@@ -150,9 +157,10 @@ class InterfaceWmlListener extends InterfaceBaseListener
             $date = Carbon::create($document['created_at']);
             $numberReceipt = $document['document_prefix'] . $document['document_number'];
             $shipmentTrackingNumber = $productCode = $origin = $destination = $client = $realWeight = null;
+            $taxExempt = (!empty($document['extra_fields']) && isset($document['extra_fields']['tax_exempt'])) ? true : false;
 
             foreach ($shipment as $key => $shp) {
-                $ivaTotal = 0;
+                $ivaTotal = $ivaBase = $ivaPercentage = 0;
                 if ($countShipment > 1) {
                     $numberInLetter = chr(65 + $key);
                     $numberReceipt = $document['document_prefix'] . $document['document_number'] . '-' . $numberInLetter;
@@ -167,10 +175,13 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 $packagesCount = count($shp['details']['header']['pieces']);
                 $realWeight = $shp['details']['ticket_data']['real_weight'];
 
+
                 if (!empty($shp['tax_detail'])) {
                     $iva = $this->getTaxIva($shp['tax_detail']);
                     if (!is_null($iva)) {
                         $ivaTotal += (float)$iva['tax_total'];
+                        $ivaBase += (float)$iva['base'];
+                        $ivaPercentage += (float)$iva['percentage'];
                     }
 
                 }
@@ -192,16 +203,23 @@ class InterfaceWmlListener extends InterfaceBaseListener
                     'client' => $client,
                     'packages_count' => $packagesCount,
                     'real_weight' => $realWeight,
+                    'tax_code' => 'IV',
+                    'tax_exempt' => $taxExempt,
+                    'tax_amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
+                    'tax_amount_subtotal' => str_replace('.', '', number_format($ivaBase, 2, '.', '')),
+                    'tax_percentage' => str_replace('.', '', number_format($ivaPercentage, 2, '.', '')),
                 ];
 
                 if (!empty($shpCompanyCountryExtraCharges)) {
 
                     foreach ($shpCompanyCountryExtraCharges as $shpCompanyCountryExtraCharge) {
-
+                        $ivaTotal = $ivaBase = $ivaPercentage = 0;
                         if (!empty($shp['tax_detail'])) {
                             $iva = $this->getTaxIva($shp['tax_detail']);
                             if (!is_null($iva)) {
                                 $ivaTotal += (float)$iva['tax_total'];
+                                $ivaBase += (float)$iva['base'];
+                                $ivaPercentage += (float)$iva['percentage'];
                             }
                         }
 
@@ -222,28 +240,15 @@ class InterfaceWmlListener extends InterfaceBaseListener
                             'client' => $client,
                             'packages_count' => null,
                             'real_weight' => null,
+                            'tax_code' => 'IV',
+                            'tax_exempt' => $taxExempt,
+                            'tax_amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
+                            'tax_amount_subtotal' => str_replace('.', '', number_format($ivaBase, 2, '.', '')),
+                            'tax_percentage' => str_replace('.', '', number_format($ivaPercentage, 2, '.', '')),
                         ];
 
                     }
                 }
-
-                $result[] = [
-                    'type' => 'Tax',
-                    'code' => 'IV',
-                    'country_code' => $this->country,
-                    'location_code' => $location['location_code'],
-                    'account' => $account,
-                    'amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
-                    'date' => $date->format('dmy'),
-                    'shipment_tracking_number' => $shipmentTrackingNumber,
-                    'number_receipt' => $numberReceipt,
-                    'product_code' => $productCode,
-                    'origin' => $origin,
-                    'destination' => $destination,
-                    'client' => $client,
-                    'packages_count' => null,
-                    'real_weight' => null,
-                ];
             }
         }
 
@@ -259,18 +264,19 @@ class InterfaceWmlListener extends InterfaceBaseListener
     }
 
     public function formatLine(
-        string     $dateInfo,
-        string     $numberReceipt,
-        string     $origin,
-        string     $client,
-        int|null   $packagesCount,
-        float|null $realWeight
+        string      $dateInfo,
+        string      $numberReceipt,
+        string      $origin,
+        string      $client,
+        int|null    $packagesCount,
+        float|null  $realWeight,
+        string|null $taxInfo,
     ): string
     {
         if (is_null($realWeight)) {
             return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 11)
                 . str_pad($client, 117)
-                . str_pad('000000000000000000', 22)
+                . $taxInfo
                 . str_pad('', 221)
                 . PHP_EOL;
         } else {
@@ -279,7 +285,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 . str_pad($packagesCount, 5) . str_pad(number_format($realWeight, 2), 10)
                 . str_pad($this->currencyCode, 5)
                 . str_pad('1', 11)
-                . str_pad('000000000000000000', 22)
+                . $taxInfo
                 . str_pad('', 220)
                 . PHP_EOL;
         }
