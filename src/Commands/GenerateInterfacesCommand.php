@@ -121,7 +121,7 @@ abstract class GenerateInterfacesCommand extends Command
             return null;
         } elseif (Carbon::now()->format('d') == $this->startDayOfMonth && $this->startDayOfMonth != 1) {
             return [
-                'from' => Carbon::startOfMonth()->startOfDay(),
+                'from' => Carbon::yesterday()->startOfMonth()->startOfDay(),
                 'to' => Carbon::yesterday()->endOfDay()
             ];
         }
