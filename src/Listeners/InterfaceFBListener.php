@@ -4,7 +4,6 @@ namespace Experteam\ApiLaravelInterface\Listeners;
 
 use Experteam\ApiLaravelCrud\Facades\ApiClientFacade;
 use Experteam\ApiLaravelInterface\Facades\InterfaceFacade;
-use Experteam\ApiLaravelInterface\Models\InterfaceRequest;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Carbon;
@@ -31,9 +30,11 @@ class InterfaceFBListener extends InterfaceBaseListener
     public string $toleranceMinusAccount = "3219400030";
     public string $cashAccount_usd = "1261000080";
     public string $checkAccount_usd = "1261000080";
+    public string $electronicPaymentAccount = '1221108020';
     public array $cashAndCheckPaymentTypes = ['Cash', 'Check'];
     public array $creditDebitCardPaymentTypes = ['Credit Card', 'Debit Card'];
     public array $electronicTransferAndDepositPaymentTypes = ['Transfer', 'Deposit'];
+    public array $electronicPaymentPaymentTypes = ['Electronic Payment'];
 
     public function getPayments($event): array
     {
@@ -183,6 +184,13 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Get electronic transfer and deposit file");
             }
 
+            if (empty($event->interfaceRequest->extras)
+                || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
+                $electronicPaymentFile = $this->electronicPaymentFile();
+
+                $this->setLogLine("Get electronic payment file");
+            }
+
             $actualDateTime = Carbon::now()->format('YmdHis');
 
             if (!empty($cashFile) && (empty($event->interfaceRequest->extras)
@@ -216,6 +224,18 @@ class InterfaceFBListener extends InterfaceBaseListener
                     $electronicTransferAndDepositFile,
                     "FB01_{$this->country}_TYD_{$actualDateTime}.txt",
                     'Electronic Transfer and Deposit'
+                );
+            } else {
+                $this->setLogLine("No payments in Electronic Transfer or Deposit");
+            }
+
+            if (!empty($electronicPaymentFile) && (empty($event->interfaceRequest->extras)
+                    || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
+                $this->setLogLine("Sending Electronic Payment file");
+                $this->saveAndSentInterface(
+                    $electronicPaymentFile,
+                    "FB01_{$this->country}_PE_{$actualDateTime}.txt",
+                    'Electronic Payment'
                 );
             } else {
                 $this->setLogLine("No payments in Electronic Transfer or Deposit");
@@ -281,7 +301,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $countryPaymentTypeFieldAccountsResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.payment_type_field_accounts.get_all'), [
                 'country_payment_type_field@country_payment_type_id' => [
-                    'in' => implode(',',array_values($this->countryPaymentTypes))
+                    'in' => implode(',', array_values($this->countryPaymentTypes))
                 ],
                 'limit' => 500,
             ]);
@@ -358,6 +378,25 @@ class InterfaceFBListener extends InterfaceBaseListener
             }
         }
 
+        $payments = InterfaceFacade::getPaymentsByPaymentTypes(
+            countryPaymentTypes: $this->getPaymentTypeIds($this->electronicPaymentPaymentTypes),
+            startDate: $this->start,
+            endDate: $this->end
+        );
+
+        if ($payments->count() > 0) {
+            foreach ($payments as $payment) {
+            $location = $this->getLocation($payment['installation_id']);
+            $fileContent .= $this->headerLine($payment, 'COB COUNTER PE ', $location);
+            [$returnFileContent, $countLine] = $this->electronicPaymentLine($payment, $location, 0);
+            $fileContent .= $returnFileContent;
+            $countLine++;
+
+            $fileContent .= $this->formatCUSLine($payment, $countLine, $location, true);
+            $countLines += $countLine;
+            }
+        }
+
         return $this->setFileLastLine($fileContent, $countHeaders, $countLines);
     }
 
@@ -413,7 +452,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     {
         $accountNumber = $this->getAccountNumber($payment);
 
-        $accountNumber = is_numeric($accountNumber)  ? Str::padLeft($accountNumber, 10, '0') : Str::padRight($accountNumber, 10, ' ');
+        $accountNumber = is_numeric($accountNumber) ? Str::padLeft($accountNumber, 10, '0') : Str::padRight($accountNumber, 10, ' ');
         $paymentDueDate = Carbon::create($payment['due_date']);
         $total = $payment['amount'];
 
@@ -547,6 +586,36 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $this->setFileLastLine($fileContent, $countHeaders, $countLines);
     }
 
+    private function electronicPaymentFile(): ?string
+    {
+        $payments = InterfaceFacade::getPaymentsByPaymentTypes(
+            countryPaymentTypes: $this->getPaymentTypeIds($this->electronicPaymentPaymentTypes),
+            startDate: $this->start,
+            endDate: $this->end
+
+        );
+
+        if ($payments->count() == 0)
+            return null;
+
+        $fileContent = '';
+        $countHeaders = $countLines = 0;
+        foreach ($payments as $payment) {
+            $location = $this->getLocation($payment['installation_id']);
+            $fileContent .= $this->headerLine($payment, 'COB COUNTER PE ', $location);
+            $countHeaders++;
+
+            [$returnFileContent, $returnLine] = $this->electronicPaymentLine($payment, $location, 0);
+            $fileContent .= $returnFileContent;
+
+            $hInlineCount = $returnLine + 1;
+            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $location);
+            $countLines += $hInlineCount;
+        }
+
+        return $this->setFileLastLine($fileContent, $countHeaders, $countLines);
+    }
+
     public function cashAndCheckLine(array $payment, $location, int $line): array
     {
         $depositNumber = $this->getDepositNumber($payment);
@@ -641,17 +710,39 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $number = $numberRegister['value'];
 
-        $allocationNumber = $this->formatStringLength(Str::reverse(Str::limit(Str::reverse($number), 18,'')), 18);
+        $allocationNumber = $this->formatStringLength(Str::reverse(Str::limit(Str::reverse($number), 18, '')), 18);
         $user = $this->getUser($payment['documents'][0]['user_id']);
         $username = $user['username'];
 
-        $numberToSix = Str::padLeft(Str::reverse(Str::limit(Str::reverse($number), 6,'')), 6, '0');
+        $numberToSix = Str::padLeft(Str::reverse(Str::limit(Str::reverse($number), 6, '')), 6, '0');
         $itemText = $this->formatStringLength("{$location['location_code']}000{$this->getClosingDatetime($payment)->format('md')}$transactionType/$numberToSix/$username", 50);
 
         $accountRegister = $this->countryPaymentTypeFieldAccounts->where('id', $accountField['value'])->first();
 
         $line++;
         $content = $this->formatDZGlLine($payment, "40", $accountRegister['accountable_account'], $line, $allocationNumber, $itemText);
+
+        return [$content, $line];
+    }
+
+    public function electronicPaymentLine(array $payment, $location, int $line): array
+    {
+        $fields = Collect($payment['details']);
+
+        $numberRegister = $fields->where('code', 'authorization_number')->first();
+        $number = $numberRegister['value'];
+
+        $allocationNumber = $this->formatStringLength(Str::reverse(Str::limit(Str::reverse($number), 18, '')), 18);
+        $user = $this->getUser($payment['documents'][0]['user_id']);
+        $username = $user['username'];
+
+        $datetime = $this->getDatetimeGmt(Carbon::parse($payment['created_at']) ?? Carbon::now());
+
+        $numberToSix = Str::padLeft(Str::reverse(Str::limit(Str::reverse($number), 6, '')), 6, '0');
+        $itemText = $this->formatStringLength("{$location['location_code']}000{$datetime->format('md')}M/$numberToSix/$username", 50);
+
+        $line++;
+        $content = $this->formatDZGlLine($payment, "40", $this->electronicPaymentAccount, $line, $allocationNumber, $itemText);
 
         return [$content, $line];
     }
@@ -780,14 +871,14 @@ class InterfaceFBListener extends InterfaceBaseListener
                     return $p['documents'][0]['id'] == $payment['documents'][0]['id'];
                 });
 
-                $openItemsPayment = array_flip([...array_flip($openItemsPayment), ...array_map(fn ($p) => $p['id'], $tmPayments->toArray())]);
+                $openItemsPayment = array_flip([...array_flip($openItemsPayment), ...array_map(fn($p) => $p['id'], $tmPayments->toArray())]);
 
                 unset($openItemsPayment[$payment['id']]);
 
                 foreach ($this->formatOpenItemsPayments($tmPayments) as $p) {
                     $newPayments->push($p);
                 }
-            } elseif($item['model_type'] == 'AccountPayment') {
+            } elseif ($item['model_type'] == 'AccountPayment') {
                 $payment['fixed_details'] = [
                     'invoice_number' => $payment['documents'][0]['document_prefix'] . $payment['documents'][0]['document_number'],
                     'shipment_tracking_number' => '.',
