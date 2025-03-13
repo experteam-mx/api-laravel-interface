@@ -381,7 +381,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $payments = InterfaceFacade::getPaymentsByPaymentTypes(
             countryPaymentTypes: $this->getPaymentTypeIds($this->electronicPaymentPaymentTypes),
             startDate: $this->start,
-            endDate: $this->end
+            finishDate: $this->end
         );
 
         if ($payments->count() > 0) {
