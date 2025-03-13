@@ -214,8 +214,8 @@ class InterfaceWmlListener extends InterfaceBaseListener
 
                     foreach ($shpCompanyCountryExtraCharges as $shpCompanyCountryExtraCharge) {
                         $ivaTotal = $ivaBase = $ivaPercentage = 0;
-                        if (!empty($shp['tax_detail'])) {
-                            $iva = $this->getTaxIva($shp['tax_detail']);
+                        if (!empty($shpCompanyCountryExtraCharge['tax_detail'])) {
+                            $iva = $this->getTaxIva($shpCompanyCountryExtraCharge['tax_detail']);
                             if (!is_null($iva)) {
                                 $ivaTotal += (float)$iva['tax_total'];
                                 $ivaBase += (float)$iva['base'];
