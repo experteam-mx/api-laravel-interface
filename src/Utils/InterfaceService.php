@@ -78,7 +78,7 @@ class InterfaceService
         return [$logs, $status];
     }
 
-    public function getPaymentsInvoices($openingIds): \Illuminate\Support\Collection
+    public function getPaymentsInvoices(array $openingIds): \Illuminate\Support\Collection
     {
         $paymentsAll = [];
         $limit = 500;
@@ -89,6 +89,36 @@ class InterfaceService
             $paymentResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
                 ->get(config('experteam-crud.invoices.payments.get_all'), [
                     'opening_id[in]' => implode(',', $openingIds),
+                    'status' => 2,
+                    'order' => ['id' => 'ASC'],
+                    'limit' => $limit,
+                    'offset' => $offset
+                ]);
+
+            $cur_payments = $paymentResponse['payments'];
+
+            $paymentsAll = array_merge($paymentsAll, $cur_payments);
+
+            $offset = $offset + $iteration;
+
+        } while (count($paymentResponse['payments']) == 500);
+
+        return Collect($paymentsAll);
+    }
+
+    public function getPaymentsByPaymentTypes(array $countryPaymentTypes, string $startDate, string $finishDate): \Illuminate\Support\Collection
+    {
+        $paymentsAll = [];
+        $limit = 500;
+        $offset = 0;
+        $iteration = 500;
+
+        do {
+            $paymentResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
+                ->get(config('experteam-crud.invoices.payments.get_all'), [
+                    'country_payment_type_id[in]' => implode(',', $countryPaymentTypes),
+                    'created_at[gte]' => $startDate,
+                    'created_at[lt]' => $finishDate,
                     'status' => 2,
                     'order' => ['id' => 'ASC'],
                     'limit' => $limit,
