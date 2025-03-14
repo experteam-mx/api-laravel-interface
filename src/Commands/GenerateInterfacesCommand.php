@@ -139,7 +139,7 @@ abstract class GenerateInterfacesCommand extends Command
         if (is_null($dates)) return null;
         return [
             'from' => Carbon::parse($dates['start'])->startOfDay(),
-            'to' => Carbon::parse($dates['start'])->endOfDay()
+            'to' => Carbon::parse($dates['end'])->endOfDay()
         ];
     }
 
