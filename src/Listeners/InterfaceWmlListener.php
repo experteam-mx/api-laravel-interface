@@ -17,6 +17,9 @@ use Psy\Readline\Hoa\Console;
 class InterfaceWmlListener extends InterfaceBaseListener
 {
 
+    public string $defaultCustomerAccount = "CASHEC001";
+    public bool $getLocationAccount = true;
+
     public function getDocuments($event): array
     {
         $this->setLogLine("Start Interface WML process");
@@ -139,27 +142,17 @@ class InterfaceWmlListener extends InterfaceBaseListener
             if (is_null($location))
                 continue;
 
-
-            $account = LocationCustomerAccount::where('location_code', $location['location_code'])
-                ->first()?->customer_account ?? $this->defaultCustomerAccount;
-
-            if (is_numeric($account))
-                $account = str_pad($account, 9, '0', STR_PAD_LEFT);
-            else
-                $account = str_pad($account, 9);
-
-
-            $shipment = $this->getHeaderItems($document);
-            if (empty($shipment))
+            $shipments = $this->getHeaderItems($document);
+            if (empty($shipments))
                 continue;
 
-            $countShipment = count($shipment);
+            $countShipment = count($shipments);
             $date = Carbon::create($document['created_at']);
             $numberReceipt = $document['document_prefix'] . $document['document_number'];
-            $shipmentTrackingNumber = $productCode = $origin = $destination = $client = $realWeight = null;
+            $realWeight = null;
             $taxExempt = (!empty($document['extra_fields']) && isset($document['extra_fields']['tax_exempt'])) ? true : false;
 
-            foreach ($shipment as $key => $shp) {
+            foreach ($shipments as $key => $shp) {
                 $ivaTotal = $ivaBase = $ivaPercentage = 0;
                 if ($countShipment > 1) {
                     $numberInLetter = chr(65 + $key);
@@ -175,6 +168,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 $packagesCount = count($shp['details']['header']['pieces']);
                 $realWeight = $shp['details']['ticket_data']['real_weight'];
 
+                $account = $this->getAccount($shp, $location);
 
                 if (!empty($shp['tax_detail'])) {
                     $iva = $this->getTaxIva($shp['tax_detail']);
@@ -252,7 +246,6 @@ class InterfaceWmlListener extends InterfaceBaseListener
             }
         }
 
-
         return $result;
     }
 
@@ -314,4 +307,20 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $this->interfaceFilesystem;
     }
 
+    public function getAccount($shipment, $location): string
+    {
+        if ($this->getLocationAccount) {
+            $account = LocationCustomerAccount::where('location_code', $location['location_code'])
+                ->first()?->customer_account ?? $this->defaultCustomerAccount;
+        } else {
+            $account = $shipment['details']['header']['accountNumber'] ?? $this->defaultCustomerAccount;
+        }
+
+        if (is_numeric($account))
+            $account = str_pad($account, 9, '0', STR_PAD_LEFT);
+        else
+            $account = str_pad($account, 9);
+
+        return $account;
+    }
 }
