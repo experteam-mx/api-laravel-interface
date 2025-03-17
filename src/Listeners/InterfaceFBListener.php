@@ -450,7 +450,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     public function formatCUSLine($payment, $hInlineCount, $location, bool $severalLines = false): string
     {
-        $accountNumber = $this->getAccountNumber($payment);
+        $accountNumber = $this->getAccountNumber($payment, $location);
 
         $accountNumber = is_numeric($accountNumber) ? Str::padLeft($accountNumber, 10, '0') : Str::padRight($accountNumber, 10, ' ');
         $paymentDueDate = Carbon::create($payment['due_date']);
@@ -839,7 +839,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $payment['fixed_details']['shipment_tracking_number'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'] ?? '';
     }
 
-    protected function getAccountNumber($payment)
+    protected function getAccountNumber($payment, $location): string
     {
         return $payment['fixed_details']['account'] ?? $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['accountNumber'];
     }
