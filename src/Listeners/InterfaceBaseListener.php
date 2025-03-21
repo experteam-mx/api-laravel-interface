@@ -125,7 +125,7 @@ class InterfaceBaseListener
     protected function getHeaderItems($document): array
     {
         $items = Collect($document['items']);
-        return array_values($items->where('model_type', 'Shipment')
+        return array_values($items->whereIn('model_type', ['Shipment', 'ExternalShipment'])
             ->all());
     }
 
