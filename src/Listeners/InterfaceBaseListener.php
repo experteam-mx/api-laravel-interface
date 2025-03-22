@@ -34,6 +34,7 @@ class InterfaceBaseListener
     protected array $emailsOnSuccess = ['crasupport@experteam.com.ec'];
     protected string $logLine = "";
     protected array $regions = [];
+    protected array $installations = [];
 
     protected function init($event): bool
     {
@@ -83,12 +84,20 @@ class InterfaceBaseListener
         $this->setLogLine("Get company country id " . $this->companyCountryId);
     }
 
-    protected function getLocation($installationId)
+    /**
+     * @throws \Exception
+     */
+    protected function getLocation($installationId): ?array
     {
-        $locationId = intval(json_decode(
-            Redis::hget('companies.installation', $installationId)
-        )?->location_id ?? 0);
-        return $this->locations->where('id', $locationId)->first();
+        if (empty($this->installations[$installationId])) {
+            $installation = json_decode(Redis::hget('companies.installation', $installationId), true);
+            if (empty($installation))
+                throw new \Exception("Data for installation {$installationId} not found in redis");
+
+            $this->installations[$installationId] = $installation;
+
+        }
+        return $this->locations->where('id', $this->installations[$installationId]['location_id'])->first();
 
     }
 

@@ -140,11 +140,6 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             if (!is_null($paymentResponse['message'])) {
                 $this->setLogLine($paymentResponse['message']);
-                return [
-                    'success' => $paymentResponse['success'],
-                    'message' => $paymentResponse['message'],
-                    'detail' => []
-                ];
             }
 
             $payments = $paymentResponse['payments'];
@@ -238,7 +233,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                     'Electronic Payment'
                 );
             } else {
-                $this->setLogLine("No payments in Electronic Transfer or Deposit");
+                $this->setLogLine("No payments in Electronic Payment");
             }
 
         } catch (\Exception $e) {
@@ -586,6 +581,9 @@ class InterfaceFBListener extends InterfaceBaseListener
         return $this->setFileLastLine($fileContent, $countHeaders, $countLines);
     }
 
+    /**
+     * @throws \Exception
+     */
     private function electronicPaymentFile(): ?string
     {
         $payments = InterfaceFacade::getPaymentsByPaymentTypes(
@@ -602,6 +600,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $countHeaders = $countLines = 0;
         foreach ($payments as $payment) {
             $location = $this->getLocation($payment['installation_id']);
+            if (is_null($location)) continue;
             $fileContent .= $this->headerLine($payment, 'COB COUNTER PE ', $location);
             $countHeaders++;
 
@@ -786,7 +785,8 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     protected function getClosingDatetime($payment): Carbon
     {
-        return $this->getDatetimeGmt(Carbon::parse($this->getClosing($payment)['createdAt']) ?? Carbon::now());
+        $closing = $this->getClosing($payment);
+        return $this->getDatetimeGmt(!is_null($closing) ? Carbon::parse($closing['createdAt']) : Carbon::now());
     }
 
     public function getCountryReferenceCurrencies(): void

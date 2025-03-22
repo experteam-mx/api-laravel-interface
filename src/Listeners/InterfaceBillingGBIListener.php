@@ -21,7 +21,6 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
     protected bool $hasPostalCharge = false;
     protected array $countryReference = [];
     protected array $products = [];
-    protected array $installations = [];
 
     public function getFileContent($documents): string
     {
@@ -172,14 +171,6 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             $this->products[$id] = json_decode(Redis::hget('catalogs.product', $id), true);
         }
         return $this->products[$id];
-    }
-
-    protected function getLocation($installationId): array
-    {
-        if (empty($this->installations[$installationId])) {
-            $this->installations[$installationId] = json_decode(Redis::hget('companies.installation', $installationId), true);
-        }
-        return $this->locations->where('id', $this->installations[$installationId]['location_id'])->first();
     }
 
     protected function getStationCode(array $location): string
