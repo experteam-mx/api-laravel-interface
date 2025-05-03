@@ -186,14 +186,12 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Get electronic payment file");
             }
 
-            $actualDateTime = Carbon::now()->format('YmdHis');
-
             if (!empty($cashFile) && (empty($event->interfaceRequest->extras)
                     || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending cash and check file");
                 $this->saveAndSentInterface(
                     $cashFile,
-                    "FB01_{$this->country}_EYC_$actualDateTime.txt",
+                    $this->getFileName('EYC'),
                     'Cash and Check'
                 );
             } else {
@@ -205,7 +203,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Credit and Debit Card file");
                 $this->saveAndSentInterface(
                     $creditDebitCardFile,
-                    "FB01_{$this->country}_TRJ_{$actualDateTime}.txt",
+                    $this->getFileName('TRJ'),
                     'Credit and Debit Card'
                 );
             } else {
@@ -217,7 +215,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Electronic Transfer and Deposit file");
                 $this->saveAndSentInterface(
                     $electronicTransferAndDepositFile,
-                    "FB01_{$this->country}_TYD_{$actualDateTime}.txt",
+                    $this->getFileName('TYD'),
                     'Electronic Transfer and Deposit'
                 );
             } else {
@@ -229,7 +227,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Electronic Payment file");
                 $this->saveAndSentInterface(
                     $electronicPaymentFile,
-                    "FB01_{$this->country}_PE_{$actualDateTime}.txt",
+                    $this->getFileName('PE'),
                     'Electronic Payment'
                 );
             } else {
@@ -242,6 +240,12 @@ class InterfaceFBListener extends InterfaceBaseListener
         }
 
         return $response;
+    }
+
+    public function getFileName(string $type): string
+    {
+        $actualDateTime = Carbon::now()->format('YmdHis');
+        return "FB01_{$this->country}_{$type}_{$actualDateTime}.txt";
     }
 
     public function singleFile($event): array

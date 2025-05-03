@@ -132,12 +132,13 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
     }
 
+    /**
+     * @throws \Exception
+     */
     public function getDataDocuments(Collection $documents): ?array
     {
         $result = [];
-
         foreach ($documents as $document) {
-
             $location = $this->getLocation($document['installation_id']);
             if (is_null($location))
                 continue;
@@ -146,107 +147,140 @@ class InterfaceWmlListener extends InterfaceBaseListener
             if (empty($shipments))
                 continue;
 
-            $countShipment = count($shipments);
-            $date = Carbon::create($document['created_at']);
-            $numberReceipt = $document['document_prefix'] . $document['document_number'];
-            $realWeight = null;
-            $taxExempt = (!empty($document['extra_fields']) && isset($document['extra_fields']['tax_exempt'])) ? true : false;
+            $documentData = $this->prepareDocumentData($document);
 
-            foreach ($shipments as $key => $shp) {
-                $ivaTotal = $ivaBase = $ivaPercentage = 0;
-                if ($countShipment > 1) {
-                    $numberInLetter = chr(65 + $key);
-                    $numberReceipt = $document['document_prefix'] . $document['document_number'] . '-' . $numberInLetter;
-                }
+            foreach ($shipments as $key => $shipment) {
+                $shipmentData = $this->prepareShipmentData($shipment, $location);
+                $receiptNumber = $this->generateReceiptNumber($document, $key, count($shipments));
+                $taxData = $this->calculateTaxData($shipment['tax_detail'] ?? []);
 
-                $shpCompanyCountryExtraCharges = $this->getShipmentItems($document, $shp);
-                $productCode = $shp['details']['code'];
-                $shipmentTrackingNumber = $shp['details']['header']['awbNumber'];
-                $origin = $shp['details']['ticket_data']['origin_service_area_code'];
-                $destination = $shp['details']['ticket_data']['destination_service_area_code'];
-                $client = Str::ascii(substr($shp['details']['ticket_data']['origin']['company_name'], 0, 50));
-                $packagesCount = count($shp['details']['header']['pieces']);
-                $realWeight = $shp['details']['ticket_data']['real_weight'];
+                $result[] = $this->createProductEntry(
+                    $documentData,
+                    $shipmentData,
+                    $receiptNumber,
+                    $taxData
+                );
 
-                $account = $this->getAccount($shp, $location);
-
-                if (!empty($shp['tax_detail'])) {
-                    $iva = $this->getTaxIva($shp['tax_detail']);
-                    if (!is_null($iva)) {
-                        $ivaTotal += (float)$iva['tax_total'];
-                        $ivaBase += (float)$iva['base'];
-                        $ivaPercentage += (float)$iva['percentage'];
-                    }
-
-                }
-
-                $result[] = [
-                    'type' => 'Product',
-                    'code' => 'FT',
-                    'country_code' => $this->country,
-                    'location_code' => $location['location_code'],
-                    'account' => $account,
-                    'amount_subtotal' => str_replace('.', '', number_format($shp['subtotal'], 2, '.', '')),
-                    'amount' => str_replace('.', '', number_format($shp['total'], 2, '.', '')),
-                    'date' => $date->format('dmy'),
-                    'shipment_tracking_number' => $shipmentTrackingNumber,
-                    'number_receipt' => $numberReceipt,
-                    'product_code' => $productCode,
-                    'origin' => $origin,
-                    'destination' => $destination,
-                    'client' => $client,
-                    'packages_count' => $packagesCount,
-                    'real_weight' => $realWeight,
-                    'tax_code' => 'D0',
-                    'tax_exempt' => $taxExempt,
-                    'tax_amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
-                    'tax_amount_subtotal' => str_replace('.', '', number_format($ivaBase, 2, '.', '')),
-                    'tax_percentage' => str_replace('.', '', number_format($ivaPercentage, 2, '.', '')),
-                ];
-
-                if (!empty($shpCompanyCountryExtraCharges)) {
-
-                    foreach ($shpCompanyCountryExtraCharges as $shpCompanyCountryExtraCharge) {
-                        $ivaTotal = $ivaBase = $ivaPercentage = 0;
-                        if (!empty($shp['tax_detail'])) {
-                            $iva = $this->getTaxIva($shp['tax_detail']);
-                            if (!is_null($iva)) {
-                                $ivaTotal += (float)$iva['tax_total'];
-                                $ivaBase += (float)$iva['base'];
-                                $ivaPercentage += (float)$iva['percentage'];
-                            }
-                        }
-
-                        $result[] = [
-                            'type' => 'ExtraCharge',
-                            'code' => $shpCompanyCountryExtraCharge['details']['code'],
-                            'country_code' => $this->country,
-                            'location_code' => $location['location_code'],
-                            'account' => $account,
-                            'amount_subtotal' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['subtotal'], 2, '.', '')),
-                            'amount' => str_replace('.', '', number_format($shpCompanyCountryExtraCharge['total'], 2, '.', '')),
-                            'date' => $date->format('dmy'),
-                            'shipment_tracking_number' => $shipmentTrackingNumber,
-                            'number_receipt' => $numberReceipt,
-                            'product_code' => $productCode,
-                            'origin' => $origin,
-                            'destination' => $destination,
-                            'client' => $client,
-                            'packages_count' => null,
-                            'real_weight' => null,
-                            'tax_code' => 'D0',
-                            'tax_exempt' => $taxExempt,
-                            'tax_amount' => str_replace('.', '', number_format($ivaTotal, 2, '.', '')),
-                            'tax_amount_subtotal' => str_replace('.', '', number_format($ivaBase, 2, '.', '')),
-                            'tax_percentage' => str_replace('.', '', number_format($ivaPercentage, 2, '.', '')),
-                        ];
-
+                $extraCharges = $this->getShipmentItems($document, $shipment);
+                if (!empty($extraCharges)) {
+                    foreach ($extraCharges as $extraCharge) {
+                        $extraChargeTaxData = $this->calculateTaxData($extraCharge['tax_detail'] ?? []);
+                        $result[] = $this->createExtraChargeEntry(
+                            $documentData,
+                            $shipmentData,
+                            $receiptNumber,
+                            $extraCharge,
+                            $extraChargeTaxData
+                        );
                     }
                 }
             }
         }
-
         return $result;
+    }
+
+    private function prepareDocumentData(array $document): array
+    {
+        return [
+            'date' => Carbon::create($document['created_at'])->format('dmy'),
+            'tax_exempt' => !empty($document['extra_fields']) && isset($document['extra_fields']['tax_exempt'])
+        ];
+    }
+
+    private function prepareShipmentData(array $shipment, array $location): array
+    {
+        return [
+            'product_code' => $shipment['details']['code'],
+            'tracking_number' => $shipment['details']['header']['awbNumber'],
+            'origin' => $shipment['details']['ticket_data']['origin_service_area_code'],
+            'destination' => $shipment['details']['ticket_data']['destination_service_area_code'],
+            'client' => Str::ascii(substr($shipment['details']['ticket_data']['origin']['company_name'], 0, 50)),
+            'packages_count' => count($shipment['details']['header']['pieces']),
+            'real_weight' => $shipment['details']['ticket_data']['real_weight'],
+            'account' => $this->getAccount($shipment, $location),
+            'location_code' => $location['location_code'],
+            'total' =>  $shipment['total'],
+            'subtotal' =>  $shipment['subtotal'] - ($shipment['discount'] ?? 0),
+        ];
+    }
+
+    private function generateReceiptNumber(array $document, int $key, int $totalShipments): string
+    {
+        $baseNumber = $document['document_prefix'] . $document['document_number'];
+        if ($totalShipments > 1) {
+            return $baseNumber . '-' . chr(65 + $key);
+        }
+        return $baseNumber;
+    }
+
+    private function calculateTaxData(array $taxDetail): array
+    {
+        $taxData = ['total' => 0, 'base' => 0, 'percentage' => 0];
+        if (!empty($taxDetail)) {
+            $iva = $this->getTaxIva($taxDetail);
+            if (!is_null($iva)) {
+                $taxData = [
+                    'total' => (float)$iva['tax_total'],
+                    'base' => (float)$iva['base'],
+                    'percentage' => (float)$iva['percentage']
+                ];
+            }
+        }
+        return $taxData;
+    }
+
+    private function createProductEntry(array $documentData, array $shipmentData, string $receiptNumber, array $taxData): array
+    {
+        return [
+            'type' => 'Product',
+            'code' => 'FT',
+            'country_code' => $this->country,
+            'location_code' => $shipmentData['location_code'],
+            'account' => $shipmentData['account'],
+            'amount_subtotal' => $this->formatNumber($shipmentData['subtotal']),
+            'amount' => $this->formatNumber($shipmentData['total']),
+            'date' => $documentData['date'],
+            'shipment_tracking_number' => $shipmentData['tracking_number'],
+            'number_receipt' => $receiptNumber,
+            'product_code' => $shipmentData['product_code'],
+            'origin' => $shipmentData['origin'],
+            'destination' => $shipmentData['destination'],
+            'client' => $shipmentData['client'],
+            'packages_count' => $shipmentData['packages_count'],
+            'real_weight' => $shipmentData['real_weight'],
+            'tax_code' => 'D0',
+            'tax_exempt' => $documentData['tax_exempt'],
+            'tax_amount' => $this->formatNumber($taxData['total']),
+            'tax_amount_subtotal' => $this->formatNumber($taxData['base']),
+            'tax_percentage' => $this->formatNumber($taxData['percentage'])
+        ];
+    }
+
+    protected function createExtraChargeEntry(array $documentData, array $shipmentData, string $receiptNumber, mixed $extraCharge, array $extraChargeTaxData): array
+    {
+        return [
+            'type' => 'ExtraCharge',
+            'code' => $extraCharge['details']['code'],
+            'country_code' => $this->country,
+            'location_code' => $shipmentData['location_code'],
+            'account' => $shipmentData['account'],
+            'amount_subtotal' => $this->formatNumber($extraCharge['subtotal'] - ($extraCharge['discount'] ?? 0)),
+            'amount' =>$this->formatNumber($extraCharge['total']),
+            'date' => $documentData['date'],
+            'shipment_tracking_number' => $shipmentData['tracking_number'],
+            'number_receipt' => $receiptNumber,
+            'product_code' => $shipmentData['product_code'],
+            'origin' => $shipmentData['origin'],
+            'destination' => $shipmentData['destination'],
+            'client' => $shipmentData['client'],
+            'packages_count' => null,
+            'real_weight' => null,
+            'tax_code' => 'D0',
+            'tax_exempt' => $documentData['tax_exempt'],
+            'tax_amount' => $this->formatNumber($extraChargeTaxData['total']),
+            'tax_amount_subtotal' => $this->formatNumber($extraChargeTaxData['base']),
+            'tax_percentage' => $this->formatNumber($extraChargeTaxData['percentage'])
+        ];
     }
 
     protected function getTaxIva($tax): ?array
@@ -322,5 +356,10 @@ class InterfaceWmlListener extends InterfaceBaseListener
             $account = str_pad($account, 9);
 
         return $account;
+    }
+
+    public function formatNumber(mixed $number): string
+    {
+        return number_format((float)$number, 2, '', '');
     }
 }

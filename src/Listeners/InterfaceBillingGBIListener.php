@@ -203,7 +203,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         }
 
         $subtotal = $this->formatStringLength(
-            number_format($headerItem['subtotal'], 2, '.', ''),
+            number_format($headerItem['subtotal'] - ($headerItem['discount'] ?? 0), 2, '.', ''),
             11, true);
 
         $postalTax = 0;
@@ -219,7 +219,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
 
         foreach ($this->getShipmentItems($document, $headerItem) as $item) {
             $subtotal = $this->formatStringLength(
-                number_format($item['subtotal'], 2, '.', ''),
+                number_format($item['subtotal'] - ($item['discount'] ?? 0), 2, '.', ''),
                 11, true);
 
             $code = $this->getExtraChargeCode($item['details']['code']);
