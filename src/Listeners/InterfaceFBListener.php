@@ -140,6 +140,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             if (!is_null($paymentResponse['message'])) {
                 $this->setLogLine($paymentResponse['message']);
+                return ['success' => true, 'message' => $paymentResponse['message'], 'detail' => []];
             }
 
             $payments = $paymentResponse['payments'];
