@@ -87,12 +87,19 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $response;
     }
 
+    /**
+     * @throws \Exception
+     */
     public function getFileContent($documents, bool $useTax = false): string
     {
         $documents = $this->getDataDocuments($documents);
         $fileContent = '';
 
         foreach ($documents as $document) {
+
+            $relatedDocument = $document['document_type_code'] == 'CRN' ?
+                $document['document']['document_prefix'] . $document['document']['document_number'] :
+                '';
 
             $code = ($document['type'] == 'Product') ? '9F' : $document['code'];
 
@@ -120,7 +127,8 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 $document['client'],
                 $document['packages_count'],
                 ($document['real_weight']) ?? null,
-                $taxInfo
+                $taxInfo,
+                $relatedDocument
             );
         }
 
@@ -298,13 +306,14 @@ class InterfaceWmlListener extends InterfaceBaseListener
         int|null    $packagesCount,
         float|null  $realWeight,
         string|null $taxInfo,
+        string      $relatedDocument = ''
     ): string
     {
         if (is_null($realWeight)) {
             return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 11)
                 . str_pad($client, 117)
                 . $taxInfo
-                . str_pad('', 220)
+                . str_pad($relatedDocument, 220)
                 . PHP_EOL;
         } else {
             return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 11)
@@ -313,7 +322,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 . str_pad($this->currencyCode, 5)
                 . str_pad('1', 11)
                 . $taxInfo
-                . str_pad('', 220)
+                . str_pad($relatedDocument, 220)
                 . PHP_EOL;
         }
     }
