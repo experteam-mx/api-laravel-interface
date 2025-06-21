@@ -125,6 +125,8 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         $payments = $this->verifyOpenItems($payments);
 
+        $this->verifyInvoices($payments);
+
         return [
             'success' => true,
             'payments' => $payments,
@@ -386,14 +388,14 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         if ($payments->count() > 0) {
             foreach ($payments as $payment) {
-            $location = $this->getLocation($payment['installation_id']);
-            $fileContent .= $this->headerLine($payment, 'COB COUNTER PE ', $location);
-            [$returnFileContent, $countLine] = $this->electronicPaymentLine($payment, $location, 0);
-            $fileContent .= $returnFileContent;
-            $countLine++;
+                $location = $this->getLocation($payment['installation_id']);
+                $fileContent .= $this->headerLine($payment, 'COB COUNTER PE ', $location);
+                [$returnFileContent, $countLine] = $this->electronicPaymentLine($payment, $location, 0);
+                $fileContent .= $returnFileContent;
+                $countLine++;
 
-            $fileContent .= $this->formatCUSLine($payment, $countLine, $location, true);
-            $countLines += $countLine;
+                $fileContent .= $this->formatCUSLine($payment, $countLine, $location, true);
+                $countLines += $countLine;
             }
         }
 
@@ -942,5 +944,23 @@ class InterfaceFBListener extends InterfaceBaseListener
             }
         }
         return $paymentsReturn;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function verifyInvoices($payments): void
+    {
+        $paymentErrors = [];
+        foreach ($payments as $payment) {
+            if (empty($payment['fixed_details']['invoice_number']) && empty($payment['documents'][0]['document'])) {
+                $paymentErrors[] = $payment;
+            }
+        }
+
+        if(count($paymentErrors) > 0) {
+            $detail = new \Exception(json_encode($paymentErrors, JSON_PRETTY_PRINT));
+            throw new \Exception("Documents without invoice", 500, $detail);
+        }
     }
 }
