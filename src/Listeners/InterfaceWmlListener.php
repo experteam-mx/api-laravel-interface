@@ -192,6 +192,8 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return [
             'date' => Carbon::create($document['created_at'])->format('dmy'),
             'is_invoice' => $document['document_type_code'] != 'CRN',
+            'related_document' => $document['document_type_code'] == 'CRN' ?
+                $document['document']['document_prefix'] . $document['document']['document_number'] : '',
             'tax_exempt' => !empty($document['extra_fields']) && isset($document['extra_fields']['tax_exempt'])
         ];
     }
@@ -250,6 +252,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'amount' => $this->formatNumber($shipmentData['total']),
             'date' => $documentData['date'],
             'is_invoice' => $documentData['is_invoice'],
+            'related_document' => $documentData['related_document'],
             'shipment_tracking_number' => $shipmentData['tracking_number'],
             'number_receipt' => $receiptNumber,
             'product_code' => $shipmentData['product_code'],
@@ -278,6 +281,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'amount' =>$this->formatNumber($extraCharge['total']),
             'date' => $documentData['date'],
             'is_invoice' => $documentData['is_invoice'],
+            'related_document' => $documentData['related_document'],
             'shipment_tracking_number' => $shipmentData['tracking_number'],
             'number_receipt' => $receiptNumber,
             'product_code' => $shipmentData['product_code'],
