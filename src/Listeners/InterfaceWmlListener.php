@@ -97,16 +97,16 @@ class InterfaceWmlListener extends InterfaceBaseListener
 
         foreach ($documents as $document) {
 
-            $relatedDocument = $document['document_type_code'] == 'CRN' ?
-                $document['document']['document_prefix'] . $document['document']['document_number'] :
-                '';
+            $relatedDocument = $document['is_invoice'] ? '' :
+                $document['document']['document_prefix'] . $document['document']['document_number'];
 
             $code = ($document['type'] == 'Product') ? '9F' : $document['code'];
 
-            if ($document['amount'] < 0)
-                $amount = '-' . $this->formatStringLength(($document['amount'] * -1), 11, true, '0');
-            else
+            if ($document['is_invoice']) {
                 $amount = $this->formatStringLength($document['amount'], 12, true, '0');
+            } else {
+                $amount = '-' . $this->formatStringLength(($document['amount'] * -1), 11, true, '0');
+            }
 
             $dateInfo = $code . $document['country_code'] . $document['location_code'] . $document['account'] .
                 $amount . $document['date'] . $document['number_receipt'];
@@ -191,6 +191,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
     {
         return [
             'date' => Carbon::create($document['created_at'])->format('dmy'),
+            'is_invoice' => $document['document_type_code'] != 'CRN',
             'tax_exempt' => !empty($document['extra_fields']) && isset($document['extra_fields']['tax_exempt'])
         ];
     }
@@ -248,6 +249,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'amount_subtotal' => $this->formatNumber($shipmentData['subtotal']),
             'amount' => $this->formatNumber($shipmentData['total']),
             'date' => $documentData['date'],
+            'is_invoice' => $documentData['is_invoice'],
             'shipment_tracking_number' => $shipmentData['tracking_number'],
             'number_receipt' => $receiptNumber,
             'product_code' => $shipmentData['product_code'],
@@ -275,6 +277,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'amount_subtotal' => $this->formatNumber($extraCharge['subtotal'] - ($extraCharge['discount'] ?? 0)),
             'amount' =>$this->formatNumber($extraCharge['total']),
             'date' => $documentData['date'],
+            'is_invoice' => $documentData['is_invoice'],
             'shipment_tracking_number' => $shipmentData['tracking_number'],
             'number_receipt' => $receiptNumber,
             'product_code' => $shipmentData['product_code'],
