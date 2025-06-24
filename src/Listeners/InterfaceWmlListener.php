@@ -101,7 +101,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
             if ($document['is_invoice']) {
                 $amount = $this->formatStringLength($document['amount'], 12, true, '0');
             } else {
-                $amount = '-' . $this->formatStringLength(($document['amount'] * -1), 11, true, '0');
+                $amount = '-' . $this->formatStringLength(($document['amount']), 11, true, '0');
             }
 
             $dateInfo = $code . $document['country_code'] . $document['location_code'] . $document['account'] .
