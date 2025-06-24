@@ -96,10 +96,6 @@ class InterfaceWmlListener extends InterfaceBaseListener
         $fileContent = '';
 
         foreach ($documents as $document) {
-
-            $relatedDocument = $document['is_invoice'] ? '' :
-                $document['document']['document_prefix'] . $document['document']['document_number'];
-
             $code = ($document['type'] == 'Product') ? '9F' : $document['code'];
 
             if ($document['is_invoice']) {
@@ -128,7 +124,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
                 $document['packages_count'],
                 ($document['real_weight']) ?? null,
                 $taxInfo,
-                $relatedDocument
+                $document['related_document']
             );
         }
 
