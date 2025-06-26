@@ -959,8 +959,9 @@ class InterfaceFBListener extends InterfaceBaseListener
         }
 
         if(count($paymentErrors) > 0) {
-            $detail = json_encode($paymentErrors, JSON_PRETTY_PRINT);
-            throw new \Exception("Documents without invoice:\n$detail");
+            $this->setLogLine("Error Documents without invoice: ");
+            $this->setLogLine(json_encode($paymentErrors));
+            throw new \Exception("Documents without invoice");
         }
     }
 }

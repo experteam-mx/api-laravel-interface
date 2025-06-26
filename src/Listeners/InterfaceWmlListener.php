@@ -19,6 +19,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
 
     public string $defaultCustomerAccount = "CASHEC001";
     public bool $getLocationAccount = true;
+    public bool $useTax = true;
 
     public function getDocuments($event): array
     {
@@ -90,27 +91,37 @@ class InterfaceWmlListener extends InterfaceBaseListener
     /**
      * @throws \Exception
      */
-    public function getFileContent($documents, bool $useTax = false): string
+    public function getFileContent($documents): string
     {
         $documents = $this->getDataDocuments($documents);
         $fileContent = '';
 
         foreach ($documents as $document) {
+
             $code = ($document['type'] == 'Product') ? '9F' : $document['code'];
 
             if ($document['is_invoice']) {
-                $amount = $this->formatStringLength($document['amount'], 12, true, '0');
+                $amount = $this->formatStringLength($document['amount_subtotal'], 12, true, '0');
             } else {
-                $amount = '-' . $this->formatStringLength(($document['amount']), 11, true, '0');
+                $amount = '-' . $this->formatStringLength(($document['amount_subtotal']), 11, true, '0');
             }
 
             $dateInfo = $code . $document['country_code'] . $document['location_code'] . $document['account'] .
                 $amount . $document['date'] . $document['number_receipt'];
-
             $origin = $document['product_code'] . $document['origin'] . $document['destination'];
 
-            if ($useTax) {
-                $taxInfo = str_pad($document['tax_amount'], 13, '0', STR_PAD_LEFT) . str_pad($document['tax_percentage'], 5, '0', STR_PAD_LEFT) . $document['tax_code'];
+            if ($this->useTax) {
+                if (round($document['tax_amount'], 2) == 0.00) {
+                    $codeTax = 'D0';
+                    $taxAmount = 0;
+                    $taxPercentage = 0;
+                } else {
+                    $codeTax = 'D1';
+                    $taxAmount = $document['tax_amount'];
+                    $taxPercentage = $document['tax_percentage'];
+                }
+
+                $taxInfo = str_pad($taxAmount, 13, '0', STR_PAD_LEFT) . str_pad($taxPercentage, 5, '0', STR_PAD_LEFT) . $codeTax;
 
             } else {
                 $taxInfo = str_pad('', 20);
