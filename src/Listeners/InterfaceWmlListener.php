@@ -18,7 +18,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
 {
 
     public string $defaultCustomerAccount = "CASHEC001";
-    public bool $getLocationAccount = true;
+    public bool $getLocationAccount = false;
     public bool $useTax = true;
 
     public function getDocuments($event): array
