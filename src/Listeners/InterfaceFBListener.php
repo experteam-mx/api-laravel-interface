@@ -140,6 +140,25 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             $paymentResponse = $this->getPayments($event);
 
+            if (empty($event->interfaceRequest->extras)
+                || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
+                $electronicPaymentFile = $this->electronicPaymentFile();
+
+                $this->setLogLine("Get electronic payment file");
+            }
+
+            if (!empty($electronicPaymentFile) && (empty($event->interfaceRequest->extras)
+                    || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
+                $this->setLogLine("Sending Electronic Payment file");
+                $this->saveAndSentInterface(
+                    $electronicPaymentFile,
+                    $this->getFileName('PE'),
+                    'Electronic Payment'
+                );
+            } else {
+                $this->setLogLine("No payments in Electronic Payment");
+            }
+
             if (!is_null($paymentResponse['message'])) {
                 $this->setLogLine($paymentResponse['message']);
                 return ['success' => true, 'message' => $paymentResponse['message'], 'detail' => []];
@@ -182,13 +201,6 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Get electronic transfer and deposit file");
             }
 
-            if (empty($event->interfaceRequest->extras)
-                || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
-                $electronicPaymentFile = $this->electronicPaymentFile();
-
-                $this->setLogLine("Get electronic payment file");
-            }
-
             if (!empty($cashFile) && (empty($event->interfaceRequest->extras)
                     || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending cash and check file");
@@ -223,18 +235,6 @@ class InterfaceFBListener extends InterfaceBaseListener
                 );
             } else {
                 $this->setLogLine("No payments in Electronic Transfer or Deposit");
-            }
-
-            if (!empty($electronicPaymentFile) && (empty($event->interfaceRequest->extras)
-                    || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
-                $this->setLogLine("Sending Electronic Payment file");
-                $this->saveAndSentInterface(
-                    $electronicPaymentFile,
-                    $this->getFileName('PE'),
-                    'Electronic Payment'
-                );
-            } else {
-                $this->setLogLine("No payments in Electronic Payment");
             }
 
         } catch (\Exception $e) {
