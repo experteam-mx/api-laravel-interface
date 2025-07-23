@@ -120,8 +120,11 @@ class InterfaceWmlListener extends InterfaceBaseListener
                     $taxAmount = $document['tax_amount'];
                     $taxPercentage = $document['tax_percentage'];
                 }
-
-                $taxInfo = str_pad($taxAmount, 13, '0', STR_PAD_LEFT) . str_pad($taxPercentage, 5, '0', STR_PAD_LEFT) . $codeTax;
+                if ($document['is_invoice']) {
+                    $taxInfo = str_pad($taxAmount, 13, '0', STR_PAD_LEFT) . str_pad($taxPercentage, 5, '0', STR_PAD_LEFT) . $codeTax;
+                } else {
+                    $taxInfo = '-' . str_pad($taxAmount, 12, '0', STR_PAD_LEFT) . str_pad($taxPercentage, 5, '0', STR_PAD_LEFT) . $codeTax;
+                }
 
             } else {
                 $taxInfo = str_pad('', 20);
@@ -217,8 +220,8 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'real_weight' => $shipment['details']['ticket_data']['real_weight'],
             'account' => $this->getAccount($shipment, $location),
             'location_code' => $location['location_code'],
-            'total' =>  $shipment['total'],
-            'subtotal' =>  $shipment['subtotal'] - ($shipment['discount'] ?? 0),
+            'total' => $shipment['total'],
+            'subtotal' => $shipment['subtotal'] - ($shipment['discount'] ?? 0),
         ];
     }
 
@@ -235,12 +238,12 @@ class InterfaceWmlListener extends InterfaceBaseListener
     {
         $taxData = ['total' => 0, 'base' => 0, 'percentage' => 0];
         if (!empty($taxDetail)) {
-            $iva = $this->getTaxIva($taxDetail);
-            if (!is_null($iva)) {
+            $vat = Collect($taxDetail)->first();
+            if (!is_null($vat)) {
                 $taxData = [
-                    'total' => (float)$iva['tax_total'],
-                    'base' => (float)$iva['base'],
-                    'percentage' => (float)$iva['percentage']
+                    'total' => (float)$vat['tax_total'],
+                    'base' => (float)$vat['base'],
+                    'percentage' => (float)$vat['percentage']
                 ];
             }
         }
@@ -285,7 +288,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'location_code' => $shipmentData['location_code'],
             'account' => $shipmentData['account'],
             'amount_subtotal' => $this->formatNumber($extraCharge['subtotal'] - ($extraCharge['discount'] ?? 0)),
-            'amount' =>$this->formatNumber($extraCharge['total']),
+            'amount' => $this->formatNumber($extraCharge['total']),
             'date' => $documentData['date'],
             'is_invoice' => $documentData['is_invoice'],
             'related_document' => $documentData['related_document'],
@@ -303,13 +306,6 @@ class InterfaceWmlListener extends InterfaceBaseListener
             'tax_amount_subtotal' => $this->formatNumber($extraChargeTaxData['base']),
             'tax_percentage' => $this->formatNumber($extraChargeTaxData['percentage'])
         ];
-    }
-
-    protected function getTaxIva($tax): ?array
-    {
-        $items = Collect($tax);
-        return $items->where('tax', 'IVA')
-            ->first();
     }
 
     public function formatLine(
