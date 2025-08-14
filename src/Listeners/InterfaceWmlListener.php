@@ -197,7 +197,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $result;
     }
 
-    private function prepareDocumentData(array $document): array
+    protected function prepareDocumentData(array $document): array
     {
         return [
             'date' => Carbon::create($document['created_at'])->format('dmy'),
@@ -208,7 +208,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
         ];
     }
 
-    private function prepareShipmentData(array $shipment, array $location): array
+    protected function prepareShipmentData(array $shipment, array $location): array
     {
         return [
             'product_code' => $shipment['details']['code'],
@@ -225,7 +225,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
         ];
     }
 
-    private function generateReceiptNumber(array $document, int $key, int $totalShipments): string
+    protected function generateReceiptNumber(array $document, int $key, int $totalShipments): string
     {
         $baseNumber = $document['document_prefix'] . $document['document_number'];
         if ($totalShipments > 1) {
@@ -234,7 +234,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $baseNumber;
     }
 
-    private function calculateTaxData(array $taxDetail): array
+    protected function calculateTaxData(array $taxDetail): array
     {
         $taxData = ['total' => 0, 'base' => 0, 'percentage' => 0];
         if (!empty($taxDetail)) {
@@ -250,7 +250,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $taxData;
     }
 
-    private function createProductEntry(array $documentData, array $shipmentData, string $receiptNumber, array $taxData): array
+    protected function createProductEntry(array $documentData, array $shipmentData, string $receiptNumber, array $taxData): array
     {
         return [
             'type' => 'Product',
