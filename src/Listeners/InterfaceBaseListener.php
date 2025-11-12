@@ -30,11 +30,12 @@ class InterfaceBaseListener
     protected string $end = "";
     protected bool $saveFileOnDB = false;
     protected bool $sentEmail = false;
-    protected array $emailsOnFail = ['crasupport@experteam.com.ec'];
-    protected array $emailsOnSuccess = ['crasupport@experteam.com.ec'];
+    protected array $emailsOnFail = [];
+    protected array $emailsOnSuccess = [];
     protected string $logLine = "";
     protected array $regions = [];
     protected array $installations = [];
+    protected array $failedFiles = [];
 
     protected function init($event): bool
     {
@@ -60,6 +61,7 @@ class InterfaceBaseListener
         $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
 
         $this->getCatalogs($event->company);
+        $this->loadNotificationEmails();
 
         return true;
     }
@@ -82,6 +84,29 @@ class InterfaceBaseListener
         $this->companyCountryId = $companyCountries['company_countries'][0]['id'];
 
         $this->setLogLine("Get company country id " . $this->companyCountryId);
+    }
+
+    protected function loadNotificationEmails(): void
+    {
+        try {
+            $parameters = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
+                ->get(config('experteam-crud.companies.parameters.get_all'), [
+                    'name' => 'ERROR_NOTIFICATION_EMAILS',
+                    'company_country_id' => $this->companyCountryId
+                ]);
+
+            if (!empty($parameters['parameters']) && !empty($parameters['parameters'][0]['value'])) {
+                $this->emailsOnFail = json_decode($parameters['parameters'][0]['value'], true);
+            }
+
+            $this->emailsOnSuccess = $this->emailsOnFail;
+
+            $this->setLogLine("Notification emails loaded: " . implode(', ', $this->emailsOnFail));
+        } catch (\Exception $e) {
+            $this->setLogLine("Error loading notification emails: " . $e->getMessage());
+            $this->emailsOnFail = ['crasupport@experteam.com.ec'];
+            $this->emailsOnSuccess = ['crasupport@experteam.com.ec'];
+        }
     }
 
     /**
@@ -114,6 +139,14 @@ class InterfaceBaseListener
 
         if ($this->toSftp) {
             [$transmissionOutput, $success] = InterfaceFacade::sendToInterface($fileName, $fileContent, $this->destFolder, $interfaceFilesystem);
+
+            if (!$success) {
+                $this->failedFiles[] = [
+                    'name' => $fileName,
+                    'type' => $type,
+                    'error' => $transmissionOutput
+                ];
+            }
         } else {
             $transmissionOutput = 'Interface not sent';
             $success = 1;
@@ -212,26 +245,26 @@ class InterfaceBaseListener
         $interfaceRangeStr = "generadas desde $from hasta $to";
         $interfaceType = $interfaceRequest->type ?? 'Payment';
 
+        $hasTransmissionErrors = !empty($this->failedFiles);
+
         if ($interfaceRequest->status == 1) {
             $subject = "Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
             $body = "Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
             $attachments = $this->getEmailFiles($interfaceRequest);
             $destinations = $this->formatEmails($this->emailsOnSuccess);
         } else {
-            $subject = "Error en las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
-            $body = "Error en las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr:" .
-                " $interfaceRequest->message";
+            if ($hasTransmissionErrors) {
+                $subject = "Error en transmisión las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+                $body = "Error en transmisión las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
+            } else {
+                $subject = "Error en las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+                $body = "Error en las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr:" .
+                    " $interfaceRequest->message";
+            }
 
             $interfaceRequest->refresh();
 
-            $attachments = [
-                [
-                    'content' => base64_encode(json_encode($interfaceRequest->detail, JSON_PRETTY_PRINT)),
-                    'name' => 'errorDetail.json',
-                    'contentType' => 'application/json',
-                    'embed' => false,
-                ]
-            ];
+            $attachments = $this->buildErrorAttachments($interfaceRequest, $hasTransmissionErrors);
             $destinations = $this->formatEmails($this->emailsOnFail);
         }
 
@@ -245,6 +278,33 @@ class InterfaceBaseListener
                 'body' => $body,
                 'attachments' => $attachments
             ]);
+    }
+
+    protected function buildErrorAttachments(InterfaceRequest $interfaceRequest, bool $hasTransmissionErrors): array
+    {
+        $attachments = [];
+
+        if ($hasTransmissionErrors) {
+            $failedFilesDetail = [
+                'total_failed_files' => count($this->failedFiles),
+                'failed_files' => $this->failedFiles
+            ];
+            $attachments[] = [
+                'content' => base64_encode(json_encode($failedFilesDetail, JSON_PRETTY_PRINT)),
+                'name' => 'failedFiles.json',
+                'contentType' => 'application/json',
+                'embed' => false,
+            ];
+        } else {
+            $attachments[] = [
+                'content' => base64_encode(json_encode($interfaceRequest->detail, JSON_PRETTY_PRINT)),
+                'name' => 'errorDetail.json',
+                'contentType' => 'application/json',
+                'embed' => false,
+            ];
+        }
+
+        return $attachments;
     }
 
     public function getEmailFiles(InterfaceRequest $interfaceRequest): array
