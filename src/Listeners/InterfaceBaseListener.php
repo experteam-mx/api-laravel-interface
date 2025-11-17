@@ -88,24 +88,27 @@ class InterfaceBaseListener
 
     protected function loadNotificationEmails(): void
     {
+        $defaultEmails = ['crasupport@experteam.com.ec'];
         try {
             $parameters = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
-                ->get(config('experteam-crud.companies.parameters.get_all'), [
-                    'name' => 'ERROR_NOTIFICATION_EMAILS',
-                    'company_country_id' => $this->companyCountryId
+                ->post(config('experteam-crud.companies.parameter_values.post'), [
+                    'parameters' => [
+                        [
+                            'name' => 'INTERFACES_NOTIFICATION_EMAILS',
+                            'model_type' => 'Country',
+                            'model_id' => $this->countryId
+                        ]
+                    ],
                 ]);
 
-            if (!empty($parameters['parameters']) && !empty($parameters['parameters'][0]['value'])) {
-                $this->emailsOnFail = json_decode($parameters['parameters'][0]['value'], true);
-            }
-
-            $this->emailsOnSuccess = $this->emailsOnFail;
-
-            $this->setLogLine("Notification emails loaded: " . implode(', ', $this->emailsOnFail));
+            $emails = $parameters['parameters'][0]['value'] ?? $defaultEmails;
+            $this->emailsOnFail = $emails;
+            $this->emailsOnSuccess = $emails;
+            $this->setLogLine("Notification emails loaded: " . implode(', ', $emails));
         } catch (\Exception $e) {
             $this->setLogLine("Error loading notification emails: " . $e->getMessage());
-            $this->emailsOnFail = ['crasupport@experteam.com.ec'];
-            $this->emailsOnSuccess = ['crasupport@experteam.com.ec'];
+            $this->emailsOnFail = $defaultEmails;
+            $this->emailsOnSuccess = $defaultEmails;
         }
     }
 
@@ -254,8 +257,8 @@ class InterfaceBaseListener
             $destinations = $this->formatEmails($this->emailsOnSuccess);
         } else {
             if ($hasTransmissionErrors) {
-                $subject = "Error en transmisión las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
-                $body = "Error en transmisión las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
+                $subject = "Error en transmisión de las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
+                $body = "Error en transmisión de las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
             } else {
                 $subject = "Error en las Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
                 $body = "Error en las Interfaces SAP($interfaceType) $this->country $interfaceRangeStr:" .
