@@ -250,7 +250,7 @@ class InterfaceBaseListener
 
         $hasTransmissionErrors = !empty($this->failedFiles);
 
-        if ($interfaceRequest->status == 1) {
+        if ($interfaceRequest->status == 1 && !$hasTransmissionErrors) {
             $subject = "Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
             $body = "Interfaces SAP($interfaceType) $this->country $interfaceRangeStr";
             $attachments = $this->getEmailFiles($interfaceRequest);
