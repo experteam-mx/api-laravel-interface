@@ -241,7 +241,9 @@ class InterfaceBaseListener
         $interfaceType = $interfaceRequest->type ?? 'Payment';
 
         if ($interfaceRequest->status == 1) {
-            $filesWithErrors = $interfaceRequest->interfaceFiles->where('status', 2)->pluck('name')->toArray;
+            $filesWithErrors = $interfaceRequest->interfaceFiles->where('status', 2)
+                ->pluck('name')
+                ->toArray();
 
             if (count($filesWithErrors) > 0) {
                 $subject = "Error en Transmisión de Interfaces SAP($interfaceType) $this->country $env $interfaceRangeStr";
