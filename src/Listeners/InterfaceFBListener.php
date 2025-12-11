@@ -35,6 +35,11 @@ class InterfaceFBListener extends InterfaceBaseListener
     public array $creditDebitCardPaymentTypes = ['Credit Card', 'Debit Card'];
     public array $electronicTransferAndDepositPaymentTypes = ['Transfer', 'Deposit'];
     public array $electronicPaymentPaymentTypes = ['Electronic Payment'];
+    public string $cashAndCheckString = 'EYC';
+    public string $creditDebitCardString = 'TRJ';
+    public string $electronicTransferAndDepositString = 'TYD';
+    public string $automaticElectronicPaymentString = 'CRA_PE';
+    public string $electronicPaymentString = 'PE';
 
     public function getPayments($event): array
     {
@@ -151,7 +156,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Automatic Electronic Payment file");
                 $this->saveAndSentInterface(
                     $autoElectronicPaymentFile,
-                    $this->getFileName('CRA_PE'),
+                    $this->getFileName($this->automaticElectronicPaymentString),
                     'Electronic Payment'
                 );
             } else {
@@ -224,7 +229,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                         )
                     );
 
-                    $this->setLogLine("Get automatic electronic payment file");
+                    $this->setLogLine("Get electronic payment file");
                 } else {
                     $this->setLogLine("No payment methods for electronic payment file");
                 }
@@ -235,7 +240,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending cash and check file");
                 $this->saveAndSentInterface(
                     $cashFile,
-                    $this->getFileName('EYC'),
+                    $this->getFileName($this->cashAndCheckString),
                     'Cash and Check'
                 );
             } else {
@@ -247,7 +252,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Credit and Debit Card file");
                 $this->saveAndSentInterface(
                     $creditDebitCardFile,
-                    $this->getFileName('TRJ'),
+                    $this->getFileName($this->creditDebitCardString),
                     'Credit and Debit Card'
                 );
             } else {
@@ -259,7 +264,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Electronic Transfer and Deposit file");
                 $this->saveAndSentInterface(
                     $electronicTransferAndDepositFile,
-                    $this->getFileName('TYD'),
+                    $this->getFileName($this->electronicTransferAndDepositString),
                     'Electronic Transfer and Deposit'
                 );
             } else {
@@ -271,7 +276,7 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Sending Electronic Transfer and Deposit file");
                 $this->saveAndSentInterface(
                     $electronicPaymentFile,
-                    $this->getFileName('PE'),
+                    $this->getFileName($this->electronicPaymentString),
                     'Electronic Payments'
                 );
             } else {
