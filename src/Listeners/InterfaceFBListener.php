@@ -137,26 +137,25 @@ class InterfaceFBListener extends InterfaceBaseListener
     public function paymentTypeGrouped($event): array
     {
         try {
-
             $paymentResponse = $this->getPayments($event);
 
             if (empty($event->interfaceRequest->extras)
                 || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
-                $electronicPaymentFile = $this->electronicPaymentFile();
+                $autoElectronicPaymentFile = $this->electronicPaymentFile();
 
-                $this->setLogLine("Get electronic payment file");
+                $this->setLogLine("Get automatic electronic payment file");
             }
 
-            if (!empty($electronicPaymentFile) && (empty($event->interfaceRequest->extras)
+            if (!empty($autoElectronicPaymentFile) && (empty($event->interfaceRequest->extras)
                     || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending Electronic Payment file");
                 $this->saveAndSentInterface(
-                    $electronicPaymentFile,
-                    $this->getFileName('PE'),
+                    $autoElectronicPaymentFile,
+                    $this->getFileName('PE_CRA'),
                     'Electronic Payment'
                 );
             } else {
-                $this->setLogLine("No payments in Electronic Payment");
+                $this->setLogLine("No payments in Automatic Electronic Payment");
             }
 
             if (!is_null($paymentResponse['message'])) {
@@ -201,6 +200,37 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Get electronic transfer and deposit file");
             }
 
+            if (empty($event->interfaceRequest->extras)
+                || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
+                $definedPaymentTypes = array_merge(
+                    $this->electronicPaymentPaymentTypes,
+                    $this->electronicTransferAndDepositPaymentTypes,
+                    $this->creditDebitCardPaymentTypes,
+                    $this->cashAndCheckPaymentTypes
+                );
+
+                $paymentTypeIds = [];
+
+                foreach ($this->countryPaymentTypes as $key => $id) {
+                    if (!in_array($key, $definedPaymentTypes)) {
+                        $paymentTypeIds[] = $id;
+                    }
+                }
+
+                if (count($paymentTypeIds) > 0) {
+                    $electronicPaymentFile = $this->electronicPaymentFile(
+                        $payments->whereIn(
+                            'country_payment_type_id',
+                            $paymentTypeIds
+                        )
+                    );
+
+                    $this->setLogLine("Get automatic electronic payment file");
+                } else {
+                    $this->setLogLine("No payment methods for electronic payment file");
+                }
+            }
+
             if (!empty($cashFile) && (empty($event->interfaceRequest->extras)
                     || in_array('cashAndCheck', $event->interfaceRequest->extras['interfaceFiles']))) {
                 $this->setLogLine("Sending cash and check file");
@@ -237,6 +267,17 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("No payments in Electronic Transfer or Deposit");
             }
 
+            if (!empty($electronicPaymentFile) && (empty($event->interfaceRequest->extras)
+                    || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
+                $this->setLogLine("Sending Electronic Transfer and Deposit file");
+                $this->saveAndSentInterface(
+                    $electronicPaymentFile,
+                    $this->getFileName('PE'),
+                    'Electronic Payments'
+                );
+            } else {
+                $this->setLogLine("No payments in Electronic Payment");
+            }
         } catch (\Exception $e) {
             $this->setLogLine("Error generating files: " . $e->getMessage());
             $response = ['success' => false, 'message' => $e->getMessage(), 'detail' => $e->getTrace()];
@@ -591,14 +632,15 @@ class InterfaceFBListener extends InterfaceBaseListener
     /**
      * @throws \Exception
      */
-    private function electronicPaymentFile(): ?string
+    protected function electronicPaymentFile(?array $payments = null): ?string
     {
-        $payments = InterfaceFacade::getPaymentsByPaymentTypes(
-            countryPaymentTypes: $this->getPaymentTypeIds($this->electronicPaymentPaymentTypes),
-            startDate: $this->start,
-            finishDate: $this->end
-
-        );
+        if (is_null($payments)) {
+            $payments = InterfaceFacade::getPaymentsByPaymentTypes(
+                countryPaymentTypes: $this->getPaymentTypeIds($this->electronicPaymentPaymentTypes),
+                startDate: $this->start,
+                finishDate: $this->end
+            );
+        }
 
         if ($payments->count() == 0)
             return null;
