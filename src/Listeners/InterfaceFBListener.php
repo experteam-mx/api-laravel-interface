@@ -203,7 +203,6 @@ class InterfaceFBListener extends InterfaceBaseListener
             if (empty($event->interfaceRequest->extras)
                 || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
                 $definedPaymentTypes = array_merge(
-                    $this->electronicPaymentPaymentTypes,
                     $this->electronicTransferAndDepositPaymentTypes,
                     $this->creditDebitCardPaymentTypes,
                     $this->cashAndCheckPaymentTypes
@@ -632,7 +631,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     /**
      * @throws \Exception
      */
-    protected function electronicPaymentFile(?array $payments = null): ?string
+    protected function electronicPaymentFile(?Collection $payments = null): ?string
     {
         if (is_null($payments)) {
             $payments = InterfaceFacade::getPaymentsByPaymentTypes(
