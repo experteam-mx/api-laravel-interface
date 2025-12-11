@@ -148,10 +148,10 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             if (!empty($autoElectronicPaymentFile) && (empty($event->interfaceRequest->extras)
                     || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
-                $this->setLogLine("Sending Electronic Payment file");
+                $this->setLogLine("Sending Automatic Electronic Payment file");
                 $this->saveAndSentInterface(
                     $autoElectronicPaymentFile,
-                    $this->getFileName('PE_CRA'),
+                    $this->getFileName('CRA_PE'),
                     'Electronic Payment'
                 );
             } else {
