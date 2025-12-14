@@ -21,6 +21,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     public array $closing = [];
     protected int $localCurrencyId = 0;
     public array $countryPaymentTypes = [];
+    public array $countryPaymentTypeAccounts = [];
     public string $language = "ES";
     public string $cashAccount = "1261000080";
     public string $checkAccount = "1269000080";
@@ -341,6 +342,10 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         foreach ($countryPaymentTypesResponse['country_payment_types'] as $countryPaymentType) {
             $this->countryPaymentTypes[$countryPaymentType['name']] = $countryPaymentType['id'];
+            $this->countryPaymentTypeAccounts[$countryPaymentType['id']] = [
+                'local' => $countryPaymentType['accountable_account'] ?? null,
+                'usd' => $countryPaymentType['accountable_account_usd'] ?? null,
+            ];
         }
 
         $this->setLogLine("Get Country Payment Type ids " . json_encode($this->countryPaymentTypes));
@@ -676,11 +681,15 @@ class InterfaceFBListener extends InterfaceBaseListener
         //E Efectivo , C Cheche
 
         if ($payment['country_payment_type_id'] == $this->countryPaymentTypes['Cash']) {
-            $account = $this->isLocalCurrencyPayment($payment) ? $this->cashAccount : $this->cashAccount_usd;
+            $account = $this->isLocalCurrencyPayment($payment) ?
+                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['local'] ?? $this->cashAccount) :
+                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->cashAccount_usd);
             $code = 'E';
             $paymentNumber = "000000";
         } else {
-            $account = $this->isLocalCurrencyPayment($payment) ? $this->checkAccount : $this->checkAccount_usd;
+            $account = $this->isLocalCurrencyPayment($payment) ?
+                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['local'] ?? $this->checkAccount) :
+                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->checkAccount_usd);
             $code = 'C';
 
             $fields = Collect($payment['details']);
@@ -784,6 +793,10 @@ class InterfaceFBListener extends InterfaceBaseListener
         $numberRegister = $fields->where('code', 'authorization_number')->first();
         $number = $numberRegister['value'];
 
+        $account = $this->isLocalCurrencyPayment($payment) ?
+            ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['local'] ?? $this->electronicPaymentAccount) :
+            ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->electronicPaymentAccount);
+
         $allocationNumber = $this->formatStringLength(Str::reverse(Str::limit(Str::reverse($number), 18, '')), 18);
         $user = $this->getUser($payment['documents'][0]['user_id']);
         $username = $user['username'];
@@ -794,7 +807,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $itemText = $this->formatStringLength("{$location['location_code']}000{$datetime->format('md')}M/$numberToSix/$username", 50);
 
         $line++;
-        $content = $this->formatDZGlLine($payment, "40", $this->electronicPaymentAccount, $line, $allocationNumber, $itemText);
+        $content = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
 
         return [$content, $line];
     }
