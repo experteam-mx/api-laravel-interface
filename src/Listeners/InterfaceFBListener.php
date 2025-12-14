@@ -682,14 +682,14 @@ class InterfaceFBListener extends InterfaceBaseListener
 
         if ($payment['country_payment_type_id'] == $this->countryPaymentTypes['Cash']) {
             $account = $this->isLocalCurrencyPayment($payment) ?
-                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['local'] ?? $this->cashAccount) :
-                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->cashAccount_usd);
+                ($this->countryPaymentTypeAccounts[$payment['country_payment_type_id']]['local'] ?? $this->cashAccount) :
+                ($this->countryPaymentTypeAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->cashAccount_usd);
             $code = 'E';
             $paymentNumber = "000000";
         } else {
             $account = $this->isLocalCurrencyPayment($payment) ?
-                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['local'] ?? $this->checkAccount) :
-                ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->checkAccount_usd);
+                ($this->countryPaymentTypeAccounts[$payment['country_payment_type_id']]['local'] ?? $this->checkAccount) :
+                ($this->countryPaymentTypeAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->checkAccount_usd);
             $code = 'C';
 
             $fields = Collect($payment['details']);
@@ -794,8 +794,8 @@ class InterfaceFBListener extends InterfaceBaseListener
         $number = $numberRegister['value'];
 
         $account = $this->isLocalCurrencyPayment($payment) ?
-            ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['local'] ?? $this->electronicPaymentAccount) :
-            ($this->countryPaymentTypeFieldAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->electronicPaymentAccount);
+            ($this->countryPaymentTypeAccounts[$payment['country_payment_type_id']]['local'] ?? $this->electronicPaymentAccount) :
+            ($this->countryPaymentTypeAccounts[$payment['country_payment_type_id']]['usd'] ?? $this->electronicPaymentAccount);
 
         $allocationNumber = $this->formatStringLength(Str::reverse(Str::limit(Str::reverse($number), 18, '')), 18);
         $user = $this->getUser($payment['documents'][0]['user_id']);
