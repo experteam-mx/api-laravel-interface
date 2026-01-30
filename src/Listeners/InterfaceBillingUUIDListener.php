@@ -82,7 +82,7 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
         ];
     }
 
-    private function getDataBilling(Collection $documents): ?array
+    protected function getDataBilling(Collection $documents): ?array
     {
         if ($documents->count() == 0)
             return null;
@@ -113,7 +113,7 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
         return $result;
     }
 
-    private function singleFile($documents): string
+    protected function singleFile($documents): string
     {
         $this->documentsData = Collect($documents);
 
@@ -145,7 +145,7 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
         return $this->companyCodeSap . "_UUID_CRA_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
     }
 
-    private function formatLine(string $companyCodeSap, string $year, string $date, string $shipmentTrackingNumber, ?string $billingAuthorization): string
+    protected function formatLine(string $companyCodeSap, string $year, string $date, string $shipmentTrackingNumber, ?string $billingAuthorization): string
     {
         return $companyCodeSap . "|" . $year . "|" . $date . "|" . $shipmentTrackingNumber . "|" . $shipmentTrackingNumber . "|" . $billingAuthorization . "|"
             . PHP_EOL;

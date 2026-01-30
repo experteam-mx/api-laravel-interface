@@ -1008,7 +1008,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     /**
      * @throws \Exception
      */
-    private function verifyInvoices($payments): void
+    protected function verifyInvoices($payments): void
     {
         $paymentErrors = [];
         foreach ($payments as $payment) {

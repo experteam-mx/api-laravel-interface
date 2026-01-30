@@ -161,7 +161,7 @@ class InterfacePaymentListener extends InterfaceBaseListener
         ];
     }
 
-    private function getDataPayment(Collection $payments): ?array
+    protected function getDataPayment(Collection $payments): ?array
     {
         if ($payments->count() == 0)
             return null;
@@ -292,7 +292,7 @@ class InterfacePaymentListener extends InterfaceBaseListener
         return "glingesppp_CRA_" . Carbon::now()->format('Ymd') . Carbon::now()->format('His') . ".txt";
     }
 
-    private function getDetailsItems($document, $item): array
+    protected function getDetailsItems($document, $item): array
     {
         $total = $item['total'];
         $account = null;
@@ -308,26 +308,26 @@ class InterfacePaymentListener extends InterfaceBaseListener
         return [$total, $account, $shipmentTrackingNumber];
     }
 
-    private function formatLine(string $dateInfo, string $costCenter, string $depositNumber, string $account, string $amount, string $clientType): string
+    protected function formatLine(string $dateInfo, string $costCenter, string $depositNumber, string $account, string $amount, string $clientType): string
     {
         return str_pad($dateInfo, 29) . str_pad($costCenter, 16) . str_pad($depositNumber, 25) . str_pad($account, 19) . str_pad($amount, 84)
             . $clientType
             . PHP_EOL;
     }
 
-    private function formatLineTotal(string $dateInfo, string $costCenter, string $depositNumber, string $account, string $amount, string $number, string $clientType): string
+    protected function formatLineTotal(string $dateInfo, string $costCenter, string $depositNumber, string $account, string $amount, string $number, string $clientType): string
     {
         return str_pad($dateInfo, 29) . str_pad($costCenter, 16) . str_pad($depositNumber, 25) . str_pad($account, 19) . str_pad($amount, 41)
             . str_pad($number, 43) . $clientType
             . PHP_EOL;
     }
 
-    private function getCountryReferenceCurrency($id)
+    protected function getCountryReferenceCurrency($id)
     {
         return $this->countryReferenceCurrencies->where('id', $id)->first();
     }
 
-    private function getDepositNumber($payment): array
+    protected function getDepositNumber($payment): array
     {
         $depositNumber = null;
         $bankAccount = null;
