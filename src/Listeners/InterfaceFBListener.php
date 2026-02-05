@@ -211,7 +211,8 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $definedPaymentTypes = array_merge(
                     $this->electronicTransferAndDepositPaymentTypes,
                     $this->creditDebitCardPaymentTypes,
-                    $this->cashAndCheckPaymentTypes
+                    $this->cashAndCheckPaymentTypes,
+                    $this->electronicPaymentPaymentTypes,
                 );
 
                 $paymentTypeIds = [];
