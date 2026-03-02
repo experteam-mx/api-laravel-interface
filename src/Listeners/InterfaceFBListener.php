@@ -336,6 +336,26 @@ class InterfaceFBListener extends InterfaceBaseListener
     {
         parent::getCatalogs($company);
 
+        $parameters = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
+            ->post(config('experteam-crud.companies.parameter_values.post'), [
+                'parameters' => [
+                    [
+                        'name' => 'COUNTRY_TOLERANCE_CONFIGURATION',
+                        'model_type' => 'Country',
+                        'model_id' => $this->countryId,
+                    ]
+                ]
+            ]);
+
+        $toleranceConfig = $parameters['parameters'][0]['value'] ?? [];
+
+        if (!empty($toleranceConfig) && $parameters['parameters'][0]['model_type'] == 'Country') {
+            $this->tolerancePlusCostCenter = $toleranceConfig['PlusCostCenter'];
+            $this->toleranceMinusCostCenter = $toleranceConfig['MinusCostCenter'];
+            $this->tolerancePlusAccount = $toleranceConfig['toleranceLossAccount'];
+            $this->toleranceMinusAccount = $toleranceConfig['toleranceProfitAccount'];
+        }
+
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
             ->get(config('experteam-crud.invoices.country_payment_types.get_all'), [
                 'country_id' => $this->countryId,
