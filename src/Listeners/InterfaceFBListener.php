@@ -350,10 +350,14 @@ class InterfaceFBListener extends InterfaceBaseListener
         $toleranceConfig = $parameters['parameters'][0]['value'] ?? [];
 
         if (!empty($toleranceConfig) && $parameters['parameters'][0]['model_type'] == 'Country') {
-            $this->tolerancePlusCostCenter ??= $toleranceConfig['PlusCostCenter'];
-            $this->toleranceMinusCostCenter ??= $toleranceConfig['MinusCostCenter'];
-            $this->tolerancePlusAccount ??= $toleranceConfig['toleranceLossAccount'];
-            $this->toleranceMinusAccount ??= $toleranceConfig['toleranceProfitAccount'];
+            $this->tolerancePlusCostCenter = !empty($toleranceConfig['plusCostCenter']) ?
+                $toleranceConfig['plusCostCenter'] : $this->tolerancePlusCostCenter;
+            $this->toleranceMinusCostCenter = !empty($toleranceConfig['minusCostCenter']) ?
+                $toleranceConfig['minusCostCenter'] : $this->toleranceMinusCostCenter;
+            $this->tolerancePlusAccount ??= !empty($toleranceConfig['toleranceLossAccount']) ?
+            $toleranceConfig['toleranceLossAccount'] : $this->tolerancePlusAccount;
+            $this->toleranceMinusAccount ??= !empty($toleranceConfig['toleranceProfitAccount']) ?
+            $toleranceConfig['toleranceProfitAccount'] : $this->toleranceMinusAccount;
         }
 
         $countryPaymentTypesResponse = ApiClientFacade::setBaseUrl(config('experteam-crud.invoices.base_url'))
