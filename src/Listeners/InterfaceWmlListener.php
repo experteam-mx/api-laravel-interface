@@ -34,7 +34,10 @@ class InterfaceWmlListener extends InterfaceBaseListener
         }
 
         $this->countryReference = json_decode(Redis::hget('companies.countryReference', $this->countryId), true);
-        $this->currencyCode = json_decode(Redis::hget('catalogs.currency', $this->countryReference['currency_id']), true)['code'];
+        $this->currencyCode = json_decode(
+            Redis::hget('catalogs.currency', $this->countryReference['currency_id']),
+            true
+        )['code'];
         $locations = ApiClientFacade::setBaseUrl(config('experteam-crud.companies.base_url'))
             ->get(config('experteam-crud.companies.locations.get_all'), [
                 'company_country_id' => $this->companyCountryId,
@@ -45,12 +48,25 @@ class InterfaceWmlListener extends InterfaceBaseListener
 
         $documents = InterfaceFacade::getDocumentsInvoices($this->start, $this->end, $this->companyCountryId, true);
 
-        if ($documents->count() == 0)
+        if ($documents->count() > 0) {
+            $documents = $documents->toArray();
+            foreach ($documents as $key => $document) {
+                if (collect($document['items'] ?? [])->contains('model_origin', 'etoolsAutoBilling')
+                    && $document['document_type_code'] != 'CRN') {
+                    unset($documents[$key]);
+                }
+            }
+
+            $documents = collect(array_values($documents));
+        }
+
+        if ($documents->count() == 0) {
             return [
                 'success' => true,
                 'documents' => $documents,
                 'message' => 'No Payment Receipts to sent'
             ];
+        }
 
         $this->setLogLine("Document generated correctly");
 
@@ -68,12 +84,13 @@ class InterfaceWmlListener extends InterfaceBaseListener
         try {
             $documentsResponse = $this->getDocuments($event);
 
-            if (!empty($documentsResponse['message']))
+            if (!empty($documentsResponse['message'])) {
                 return [
                     'success' => $documentsResponse['success'],
                     'message' => $documentsResponse['message'],
                     'detail' => []
                 ];
+            }
 
             $this->setLogLine("Sending General file");
             $this->saveAndSentInterface(
@@ -97,7 +114,6 @@ class InterfaceWmlListener extends InterfaceBaseListener
         $fileContent = '';
 
         foreach ($documents as $document) {
-
             $code = ($document['type'] == 'Product') ? '9F' : $document['code'];
 
             if ($document['is_invoice']) {
@@ -121,11 +137,20 @@ class InterfaceWmlListener extends InterfaceBaseListener
                     $taxPercentage = $document['tax_percentage'];
                 }
                 if ($document['is_invoice']) {
-                    $taxInfo = str_pad($taxAmount, 13, '0', STR_PAD_LEFT) . str_pad($taxPercentage, 5, '0', STR_PAD_LEFT) . $codeTax;
+                    $taxInfo = str_pad($taxAmount, 13, '0', STR_PAD_LEFT) . str_pad(
+                            $taxPercentage,
+                            5,
+                            '0',
+                            STR_PAD_LEFT
+                        ) . $codeTax;
                 } else {
-                    $taxInfo = '-' . str_pad($taxAmount, 12, '0', STR_PAD_LEFT) . str_pad($taxPercentage, 5, '0', STR_PAD_LEFT) . $codeTax;
+                    $taxInfo = '-' . str_pad($taxAmount, 12, '0', STR_PAD_LEFT) . str_pad(
+                            $taxPercentage,
+                            5,
+                            '0',
+                            STR_PAD_LEFT
+                        ) . $codeTax;
                 }
-
             } else {
                 $taxInfo = str_pad('', 20);
             }
@@ -147,7 +172,9 @@ class InterfaceWmlListener extends InterfaceBaseListener
 
     public function getFilename(): string
     {
-        return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
+        return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format(
+                'His'
+            ) . ".txt";
     }
 
     /**
@@ -158,12 +185,14 @@ class InterfaceWmlListener extends InterfaceBaseListener
         $result = [];
         foreach ($documents as $document) {
             $location = $this->getLocation($document['installation_id']);
-            if (is_null($location))
+            if (is_null($location)) {
                 continue;
+            }
 
             $shipments = $this->getHeaderItems($document);
-            if (empty($shipments))
+            if (empty($shipments)) {
                 continue;
+            }
 
             $documentData = $this->prepareDocumentData($document);
 
@@ -250,8 +279,12 @@ class InterfaceWmlListener extends InterfaceBaseListener
         return $taxData;
     }
 
-    protected function createProductEntry(array $documentData, array $shipmentData, string $receiptNumber, array $taxData): array
-    {
+    protected function createProductEntry(
+        array $documentData,
+        array $shipmentData,
+        string $receiptNumber,
+        array $taxData
+    ): array {
         return [
             'type' => 'Product',
             'code' => 'FT',
@@ -279,8 +312,13 @@ class InterfaceWmlListener extends InterfaceBaseListener
         ];
     }
 
-    protected function createExtraChargeEntry(array $documentData, array $shipmentData, string $receiptNumber, mixed $extraCharge, array $extraChargeTaxData): array
-    {
+    protected function createExtraChargeEntry(
+        array $documentData,
+        array $shipmentData,
+        string $receiptNumber,
+        mixed $extraCharge,
+        array $extraChargeTaxData
+    ): array {
         return [
             'type' => 'ExtraCharge',
             'code' => $extraCharge['details']['code'],
@@ -309,16 +347,15 @@ class InterfaceWmlListener extends InterfaceBaseListener
     }
 
     public function formatLine(
-        string      $dateInfo,
-        string      $numberReceipt,
-        string      $origin,
-        string      $client,
-        int|null    $packagesCount,
-        float|null  $realWeight,
+        string $dateInfo,
+        string $numberReceipt,
+        string $origin,
+        string $client,
+        int|null $packagesCount,
+        float|null $realWeight,
         string|null $taxInfo,
-        string      $relatedDocument = ''
-    ): string
-    {
+        string $relatedDocument = ''
+    ): string {
         if (is_null($realWeight)) {
             return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 11)
                 . str_pad($client, 117)
@@ -341,8 +378,9 @@ class InterfaceWmlListener extends InterfaceBaseListener
     {
         $items = [];
         foreach ($document['items'] as $item) {
-            if (($item['details']['relation'] ?? '') == $headerItem['details']['header']['awbNumber'])
+            if (($item['details']['relation'] ?? '') == $headerItem['details']['header']['awbNumber']) {
                 $items[] = $item;
+            }
         }
         return $items;
     }
@@ -369,10 +407,11 @@ class InterfaceWmlListener extends InterfaceBaseListener
             $account = $shipment['details']['header']['accountNumber'] ?? $this->defaultCustomerAccount;
         }
 
-        if (is_numeric($account))
+        if (is_numeric($account)) {
             $account = str_pad($account, 9, '0', STR_PAD_LEFT);
-        else
+        } else {
             $account = str_pad($account, 9);
+        }
 
         return $account;
     }
