@@ -107,6 +107,7 @@ abstract class GenerateInterfacesCommand extends Command
                 'to_sftp' => $toSftp,
                 'type' => null,
                 'extras' => [
+                    'withholding' => false,
                     'interfaceFiles' => $this->bankReferenceInterfaceFiles
                 ],
             ]);

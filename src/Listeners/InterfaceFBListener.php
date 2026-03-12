@@ -32,6 +32,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     public string $cashAccount_usd = "1261000080";
     public string $checkAccount_usd = "1261000080";
     public string $electronicPaymentAccount = '1221108020';
+    public string $withholdingAccount = '';
     public array $cashAndCheckPaymentTypes = ['Cash', 'Check'];
     public array $creditDebitCardPaymentTypes = ['Credit Card', 'Debit Card'];
     public array $electronicTransferAndDepositPaymentTypes = ['Transfer', 'Deposit'];
@@ -41,6 +42,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     public string $electronicTransferAndDepositString = 'TYD';
     public string $automaticElectronicPaymentString = 'CRA_PE';
     public string $electronicPaymentString = 'PE';
+    public string $withholdingString = 'RET';
 
     public function getPayments($event): array
     {
@@ -206,6 +208,14 @@ class InterfaceFBListener extends InterfaceBaseListener
                 $this->setLogLine("Get electronic transfer and deposit file");
             }
 
+            if ($this->withholdingAccount && ($event->interfaceRequest->extras['withholding'] ?? true)) {
+                $withholdingDocumentIds = $this->getWithholdingDocumentIds($payments);
+                $withholdingFile = $this->withholdingFile(
+                    $payments->whereIn('id', $withholdingDocumentIds)
+                );
+                $this->setLogLine("Get withholding file");
+            }
+
             if (empty($event->interfaceRequest->extras)
                 || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
                 $definedPaymentTypes = array_merge(
@@ -271,6 +281,19 @@ class InterfaceFBListener extends InterfaceBaseListener
                 );
             } else {
                 $this->setLogLine("No payments in Electronic Transfer or Deposit");
+            }
+
+            if ($this->withholdingAccount && ($event->interfaceRequest->extras['withholding'] ?? true)) {
+                if (!empty($withholdingFile)) {
+                    $this->setLogLine("Sending withholding file");
+                    $this->saveAndSentInterface(
+                        $withholdingFile,
+                        $this->getFileName($this->withholdingString),
+                        'Withholding'
+                    );
+                } else {
+                    $this->setLogLine("No documents withholding");
+                }
             }
 
             if (!empty($electronicPaymentFile) && (empty($event->interfaceRequest->extras)
@@ -1047,5 +1070,74 @@ class InterfaceFBListener extends InterfaceBaseListener
             $this->setLogLine(json_encode($paymentErrors));
             throw new \Exception("Documents without invoice");
         }
+    }
+
+    public function getWithholdingDocumentIds(Collection $payments): array
+    {
+        $documentToPaymentMap = [];
+        foreach ($payments as $payment) {
+            $document = $payment['documents'][0] ?? [];
+            $documentId = $document['id'] ?? null;
+
+            if (!$documentId || isset($documentToPaymentMap[$documentId])) continue;
+
+            $items = $document['items'] ?? [];
+            foreach ($items as $item) {
+                if (
+                    ($item['model_type'] ?? '') === 'Shipment' &&
+                    ($item['model_origin'] ?? '') === 'shipments' &&
+                    !empty($item['details']['ticket_data']['shipment_withholding'] ?? null)
+                ) {
+                    $documentToPaymentMap[$documentId] = $payment['id'];
+                    break;
+                }
+            }
+        }
+        return array_values(array_unique($documentToPaymentMap));
+    }
+
+    /**
+     * @throws \Exception
+     */
+    public function withholdingFile(Collection $payments): ?string
+    {
+        if ($payments->count() == 0)
+            return null;
+
+        $fileContent = '';
+        $countHeaders = $countLines = 0;
+        foreach ($payments as $payment) {
+            $location = $this->getLocation($payment['installation_id']);
+            $fileContent .= $this->headerLine($payment, 'COBRANZA COUNT ', $location);
+            $countHeaders++;
+
+            [$returnFileContent, $returnLine] = $this->withholdingLine($payment, 0);
+            $fileContent .= $returnFileContent;
+
+            $hInlineCount = $returnLine + 1;
+            $payment['amount'] = $this->getWithholdingAmount($payment);
+            $fileContent .= $this->formatCUSLine($payment, $hInlineCount, $location);
+            $countLines += $hInlineCount;
+        }
+
+        return $this->setFileLastLine($fileContent, $countHeaders, $countLines);
+    }
+
+    public function withholdingLine(array $payment, int $line): array
+    {
+        $awbNumber = $this->getHeaderItems($payment['documents'][0])[0]['details']['header']['awbNumber'] ?? '';
+        $allocationNumber = $this->formatStringLength($awbNumber, 18);
+        $itemText = $this->formatStringLength("IVA Retenido/ AWB # $awbNumber", 50);
+
+        $line++;
+        $payment['received'] = $this->getWithholdingAmount($payment);
+        $fileContent = $this->formatDZGlLine($payment, "40", $this->withholdingAccount, $line, $allocationNumber, $itemText);
+        return [$fileContent, $line];
+    }
+
+    public function getWithholdingAmount(array $payment): float
+    {
+        $headerItem = $this->getHeaderItems($payment['documents'][0]) ?? [];
+        return $headerItem[0]['details']['ticket_data']['shipment_withholding']['amount'] ?? 0.00;
     }
 }
