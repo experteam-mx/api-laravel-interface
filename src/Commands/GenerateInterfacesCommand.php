@@ -118,7 +118,7 @@ abstract class GenerateInterfacesCommand extends Command
 
     public function waitStartOfTheMonth(): ?array
     {
-        if (Carbon::now()->format('d') < $this->startDayOfMonth) {
+        if (Carbon::now()->format('d') < $this->startDayOfMonth && Carbon::now()->format('d') != 1) {
             return null;
         } elseif (Carbon::now()->format('d') == $this->startDayOfMonth && $this->startDayOfMonth != 1) {
             return [
