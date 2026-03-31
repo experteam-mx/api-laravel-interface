@@ -229,7 +229,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
     protected function prepareDocumentData(array $document): array
     {
         return [
-            'date' => Carbon::create($document['created_at'])->format('dmy'),
+            'date' => Carbon::create($document['authorization_datetime'] ?? $document['created_at'])->format('dmy'),
             'is_invoice' => $document['document_type_code'] != 'CRN',
             'related_document' => $document['document_type_code'] == 'CRN' ?
                 $document['document']['document_prefix'] . $document['document']['document_number'] : '',

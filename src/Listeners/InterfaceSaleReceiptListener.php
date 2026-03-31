@@ -125,7 +125,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
                 continue;
 
             $countShipment = count($shipment);
-            $date = Carbon::create($document['created_at']);
+            $date = Carbon::create($document['authorization_datetime'] ?? $document['created_at']);
 
             $ivaTotal = 0;
             $numberReceipt = $document['document_prefix'] . $document['document_number'];

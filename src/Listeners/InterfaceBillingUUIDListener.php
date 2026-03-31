@@ -93,7 +93,7 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
             $shipmentTrackingDate = null;
             $location = $this->getLocation($document['installation_id']);
 
-            $billingDate = Carbon::create($document['created_at']);
+            $billingDate = Carbon::create($document['authorization_datetime'] ?? $document['created_at']);
             foreach ($this->getHeaderItems($document) as $item) {
                 $shipmentTrackingNumber = $item['details']['header']['awbNumber'];
                 $shipmentTrackingDate = $item['details']['ticket_data']['created_at'];

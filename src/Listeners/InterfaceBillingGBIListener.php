@@ -72,7 +72,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
         );
 
         $currentDate = Carbon::now()->format('Ymd');
-        $DocumentDate = Carbon::parse($document['created_at'])->format('Ymd');
+        $DocumentDate = Carbon::parse($document['authorization_datetime'] ?? $document['created_at'])->format('Ymd');
         $ShipmentDate = Carbon::parse($item['details']['ticket_data']['created_at'])->format('Ymd');
 
         $oneTimeAccount = $this->formatStringLength($this->getOneTimeAccount($document), 10);
