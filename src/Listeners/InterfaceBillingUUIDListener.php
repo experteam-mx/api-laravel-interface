@@ -93,12 +93,12 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
             $shipmentTrackingDate = null;
             $location = $this->getLocation($document['installation_id']);
 
-            $billingDate = Carbon::create($document['authorization_datetime'] ?? $document['created_at']);
+            $billingDate = $this->getDatetimeGmt(Carbon::create($document['authorization_datetime'] ?? $document['created_at']));
             foreach ($this->getHeaderItems($document) as $item) {
                 $shipmentTrackingNumber = $item['details']['header']['awbNumber'];
                 $shipmentTrackingDate = $item['details']['ticket_data']['created_at'];
 
-                $shipmentTrackingDate = Carbon::create($shipmentTrackingDate);
+                $shipmentTrackingDate = $this->getDatetimeGmt(Carbon::create($shipmentTrackingDate));
                 $result[] = [
                     'location_id' => $location['id'],
                     'date_billing' => $billingDate->format('dmY'),
@@ -142,7 +142,7 @@ class InterfaceBillingUUIDListener extends InterfaceBaseListener
 
     public function getFilename(): string
     {
-        return $this->companyCodeSap . "_UUID_CRA_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
+        return $this->companyCodeSap . "_UUID_CRA_" . $this->getDatetimeGmt(Carbon::now())->format('Ymd') . "_" . $this->getDatetimeGmt(Carbon::now())->format('His') . ".txt";
     }
 
     protected function formatLine(string $companyCodeSap, string $year, string $date, string $shipmentTrackingNumber, ?string $billingAuthorization): string

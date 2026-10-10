@@ -317,7 +317,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
     public function getFileName(string $type): string
     {
-        $actualDateTime = Carbon::now()->format('YmdHis');
+        $actualDateTime = $this->getDatetimeGmt(Carbon::now())->format('YmdHis');
         return "FB01_{$this->country}_{$type}_{$actualDateTime}.txt";
     }
 
@@ -340,7 +340,7 @@ class InterfaceFBListener extends InterfaceBaseListener
 
             $fileContent = $this->getSingleFileContent($payments);
 
-            $actualDateTime = Carbon::now()->format('YmdHis');
+            $actualDateTime = $this->getDatetimeGmt(Carbon::now())->format('YmdHis');
 
             $this->setLogLine("Sending General file");
             $this->saveAndSentInterface(
@@ -553,7 +553,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         $accountNumber = $this->getAccountNumber($payment, $location);
 
         $accountNumber = strlen($accountNumber) >= 9 ? Str::padRight($accountNumber, 10, ' ') : Str::padLeft($accountNumber, 10, '0');
-        $paymentDueDate = Carbon::create($payment['due_date']);
+        $paymentDueDate = $this->getDatetimeGmt(Carbon::create($payment['created_at']));
         $total = $payment['amount'];
 
         $regionCode = $this->formatStringLength(

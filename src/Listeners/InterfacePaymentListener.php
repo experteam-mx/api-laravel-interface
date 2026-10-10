@@ -166,7 +166,7 @@ class InterfacePaymentListener extends InterfaceBaseListener
         if ($payments->count() == 0)
             return null;
         $result = [];
-        $now = Carbon::now();
+        $now = $this->getDatetimeGmt(Carbon::now());
 
         foreach ($payments as $payment) {
             $paymentAmount = null;
@@ -181,7 +181,7 @@ class InterfacePaymentListener extends InterfaceBaseListener
             }
             $costCenter = $locationCostCenter['cost_center'];
             $terminal = $locationCostCenter['terminal'];
-            $paymentDueDate = Carbon::create($payment['due_date']);
+            $paymentDueDate = $this->getDatetimeGmt(Carbon::create($payment['due_date']));
             $paymentDueDate->getTimezone($location['gmt_offset']);
             $currencyCode = $this->getCountryReferenceCurrency($payment['country_reference_currency_id'])['currency']['code'];
             [$depositNumber, $bankAccount] = $this->getDepositNumber($payment);
@@ -289,7 +289,7 @@ class InterfacePaymentListener extends InterfaceBaseListener
 
     public function getFilename(): string
     {
-        return "glingesppp_CRA_" . Carbon::now()->format('Ymd') . Carbon::now()->format('His') . ".txt";
+        return "glingesppp_CRA_" . $this->getDatetimeGmt(Carbon::now())->format('Ymd') . $this->getDatetimeGmt(Carbon::now())->format('His') . ".txt";
     }
 
     protected function getDetailsItems($document, $item): array

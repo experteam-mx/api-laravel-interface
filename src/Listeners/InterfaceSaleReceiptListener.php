@@ -106,7 +106,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
 
     public function getFilename(): string
     {
-        return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format('His') . ".txt";
+        return $this->countryCode . "_WML_OC_02_" . $this->getDatetimeGmt(Carbon::now())->format('Ymd') . "_" . $this->getDatetimeGmt(Carbon::now())->format('His') . ".txt";
     }
 
     public function getDataDocuments(Collection $documents): ?array

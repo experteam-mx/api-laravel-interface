@@ -172,7 +172,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
 
     public function getFilename(): string
     {
-        return $this->countryCode . "_WML_OC_02_" . Carbon::now()->format('Ymd') . "_" . Carbon::now()->format(
+        return $this->countryCode . "_WML_OC_02_" . $this->getDatetimeGmt(Carbon::now())->format('Ymd') . "_" . $this->getDatetimeGmt(Carbon::now())->format(
                 'His'
             ) . ".txt";
     }
@@ -229,7 +229,7 @@ class InterfaceWmlListener extends InterfaceBaseListener
     protected function prepareDocumentData(array $document): array
     {
         return [
-            'date' => Carbon::create($document['authorization_datetime'] ?? $document['created_at'])->format('dmy'),
+            'date' => $this->getDatetimeGmt(Carbon::create($document['authorization_datetime'] ?? $document['created_at']))->format('dmy'),
             'is_invoice' => $document['document_type_code'] != 'CRN',
             'related_document' => $document['document_type_code'] == 'CRN' ?
                 $document['document']['document_prefix'] . $document['document']['document_number'] : '',

@@ -60,7 +60,7 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
 
     public function getFilename(): string
     {
-        return "gbi_{$this->country}_exp_" . Carbon::now()->format('Ymdhis') . "_CRA.txt";
+        return "gbi_{$this->country}_exp_" . $this->getDatetimeGmt(Carbon::now())->format('Ymdhis') . "_CRA.txt";
     }
 
     protected function getHeaderLine(array $document, array $item): string
@@ -71,9 +71,9 @@ class InterfaceBillingGBIListener extends InterfaceBillingListener
             true
         );
 
-        $currentDate = Carbon::now()->format('Ymd');
-        $DocumentDate = Carbon::parse($document['authorization_datetime'] ?? $document['created_at'])->format('Ymd');
-        $ShipmentDate = Carbon::parse($item['details']['ticket_data']['created_at'])->format('Ymd');
+        $currentDate = $this->getDatetimeGmt(Carbon::now())->format('Ymd');
+        $DocumentDate = $this->getDatetimeGmt(Carbon::parse($document['authorization_datetime'] ?? $document['created_at']))->format('Ymd');
+        $ShipmentDate = $this->getDatetimeGmt(Carbon::parse($item['details']['ticket_data']['created_at']))->format('Ymd');
 
         $oneTimeAccount = $this->formatStringLength($this->getOneTimeAccount($document), 10);
 

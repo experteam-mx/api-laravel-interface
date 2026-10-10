@@ -56,9 +56,9 @@ class InterfaceBaseListener
         $end = clone $to;
 
         $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
-        $this->start = $this->getDatetimeGmt($start)->format('Y-m-d H:i:s');
+        $this->start = $this->getDatetimeGmt($start, true)->format('Y-m-d H:i:s');
 
-        $this->end = $this->getDatetimeGmt($end)->format('Y-m-d H:i:s');
+        $this->end = $this->getDatetimeGmt($end, true)->format('Y-m-d H:i:s');
 
         $this->getCatalogs($event->company);
         $this->loadNotificationEmails();
@@ -186,11 +186,16 @@ class InterfaceBaseListener
         return $this->interfaceFilesystem;
     }
 
-    protected function getDatetimeGmt(Carbon $datetime): Carbon
+    protected function getDatetimeGmt(Carbon $datetime, bool $invert = false): Carbon
     {
-        $spanArray = explode(':', $this->countryGmtOffset);
-        $minutes = ((int)($spanArray[0]) * 60) + ((int)($spanArray[1] ?? 0));
-        return $datetime->subMinutes($minutes);
+        $gmtOffsetArray = explode(':', $this->countryGmtOffset);
+        if (str_starts_with($this->countryGmtOffset, '-'))
+            $minutes = (floatval($gmtOffsetArray[0]) * 60) - floatval($gmtOffsetArray[1] ?? 0);
+        else
+            $minutes = (floatval($gmtOffsetArray[0]) * 60) + floatval($gmtOffsetArray[1] ?? 0);
+
+        $minutes = $invert ? (-1 * $minutes) : $minutes;
+        return $datetime->addMinutes($minutes);
     }
 
     protected function getRegion($regionId): ?array

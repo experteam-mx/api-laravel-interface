@@ -95,6 +95,6 @@ class InterfaceBillingListener extends InterfaceBaseListener
 
     public function getFilename(): string
     {
-        return $this->countryCode . "_PMNTREF_" . Carbon::now()->format('md') . "_CRA.txt";
+        return $this->countryCode . "_PMNTREF_" . $this->getDatetimeGmt(Carbon::now())->format('md') . "_CRA.txt";
     }
 }
