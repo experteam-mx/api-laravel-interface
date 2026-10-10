@@ -54,13 +54,13 @@ class InterfaceBaseListener
             Carbon::create($event->interfaceRequest->from);
         $start = clone $from;
         $end = clone $to;
+        $this->getCatalogs($event->company);
 
         $this->setLogLine("Interface required from " . $from->format('Y-m-d') . " to " . $to->format('Y-m-d'));
         $this->start = $this->getDatetimeGmt($start, true)->format('Y-m-d H:i:s');
 
         $this->end = $this->getDatetimeGmt($end, true)->format('Y-m-d H:i:s');
 
-        $this->getCatalogs($event->company);
         $this->loadNotificationEmails();
 
         return true;
