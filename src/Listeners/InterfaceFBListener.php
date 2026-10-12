@@ -900,7 +900,7 @@ class InterfaceFBListener extends InterfaceBaseListener
     protected function getClosingDatetime($payment): Carbon
     {
         $closing = $this->getClosing($payment);
-        return $this->getDatetimeGmt(!is_null($closing) ? Carbon::parse($closing['createdAt']) : Carbon::now());
+        return $this->getDatetimeGmt(Carbon::parse(!is_null($closing) ? $closing['createdAt'] : $payment['created_at']));
     }
 
     public function getCountryReferenceCurrencies(): void
