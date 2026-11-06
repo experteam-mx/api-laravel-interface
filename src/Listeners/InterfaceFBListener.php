@@ -147,23 +147,20 @@ class InterfaceFBListener extends InterfaceBaseListener
         try {
             $paymentResponse = $this->getPayments($event);
 
-            if (empty($event->interfaceRequest->extras)
-                || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles'])) {
-                $autoElectronicPaymentFile = $this->electronicPaymentFile();
-
+            if (!empty($event->interfaceRequest->extras)
+                && ($event->interfaceRequest->extras['autoBilling'] ?? false)) {
                 $this->setLogLine("Get automatic electronic payment file");
-            }
-
-            if (!empty($autoElectronicPaymentFile) && (empty($event->interfaceRequest->extras)
-                    || in_array('electronicPayment', $event->interfaceRequest->extras['interfaceFiles']))) {
-                $this->setLogLine("Sending Automatic Electronic Payment file");
-                $this->saveAndSentInterface(
-                    $autoElectronicPaymentFile,
-                    $this->getFileName($this->automaticElectronicPaymentString),
-                    'Electronic Payment'
-                );
-            } else {
-                $this->setLogLine("No payments in Automatic Electronic Payment");
+                $autoElectronicPaymentFile = $this->electronicPaymentFile();
+                if (!empty($autoElectronicPaymentFile)) {
+                    $this->setLogLine("Sending Automatic Electronic Payment file");
+                    $this->saveAndSentInterface(
+                        $autoElectronicPaymentFile,
+                        $this->getFileName($this->automaticElectronicPaymentString),
+                        'Electronic Payment'
+                    );
+                } else {
+                    $this->setLogLine("No payments in Automatic Electronic Payment");
+                }
             }
 
             if (!is_null($paymentResponse['message'])) {

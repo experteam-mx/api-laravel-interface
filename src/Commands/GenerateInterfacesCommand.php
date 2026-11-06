@@ -14,6 +14,7 @@ abstract class GenerateInterfacesCommand extends Command
     protected string $country = "";
     public int $startDayOfMonth = 1;
     public int $waitDays = 1;
+    public int $autoBackDays = 0;
     public array $bankReferenceInterfaceFiles = [];
     public array $notBankReferenceInterfaceFiles = InterfaceRequest::INTERFACE_FILE_TYPES;
 
@@ -122,13 +123,13 @@ abstract class GenerateInterfacesCommand extends Command
             return null;
         } elseif (Carbon::now()->format('d') == $this->startDayOfMonth && $this->startDayOfMonth != 1) {
             return [
-                'from' => Carbon::yesterday()->startOfMonth()->startOfDay(),
+                'from' => Carbon::yesterday()->startOfMonth()->subDays($this->autoBackDays)->startOfDay(),
                 'to' => Carbon::yesterday()->endOfDay()
             ];
         }
 
         return [
-            'from' => Carbon::yesterday()->startOfDay(),
+            'from' => Carbon::yesterday()->subDays($this->autoBackDays)->startOfDay(),
             'to' => Carbon::yesterday()->endOfDay()
         ];
     }

@@ -254,7 +254,7 @@ class InterfaceSaleReceiptListener extends InterfaceBaseListener
         } else {
             return str_pad($dateInfo, 50) . str_pad($numberReceipt, 10) . str_pad($origin, 10)
                 . str_pad($client, 76) . str_pad(1, 5)
-                . str_pad($packagesCount, 5) . str_pad(number_format($realWeight, 2), 21)
+                . str_pad($packagesCount, 5) . str_pad(number_format($realWeight, 2, '.', ''), 21)
                 . PHP_EOL;
         }
     }
