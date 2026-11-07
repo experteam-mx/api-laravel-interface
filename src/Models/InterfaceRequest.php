@@ -48,6 +48,7 @@ class InterfaceRequest extends BaseModel
         'from',
         'to',
         'to_sftp',
+        'auto_billing',
         'message',
         'detail',
         'extras',
@@ -55,7 +56,9 @@ class InterfaceRequest extends BaseModel
     ];
 
     protected $casts = [
-        'status' => 'integer'
+        'status' => 'integer',
+        'to_sftp' => 'bool',
+        'auto_billing' => 'bool',
     ];
 
     public function interfaceFiles()

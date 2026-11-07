@@ -53,6 +53,8 @@ abstract class GenerateInterfacesCommand extends Command
         $to = $this->option('to');
         $toSftp = $this->option('toSftp');
         $toSftp = is_null($toSftp) || $toSftp == 'true';
+        $autoBilling = $this->option('autoBilling');
+        $autoBilling = !is_null($autoBilling) && boolval($autoBilling);
 
         if (!is_null($from) && !is_null($to)) {
             return [InterfaceRequest::create([
@@ -61,6 +63,7 @@ abstract class GenerateInterfacesCommand extends Command
                 'transaction_id' => \Str::orderedUuid()->toString(),
                 'status' => 0,
                 'to_sftp' => $toSftp,
+                'auto_billing' => $autoBilling,
                 'type' => null
             ])];
         }
@@ -78,6 +81,7 @@ abstract class GenerateInterfacesCommand extends Command
                     'transaction_id' => \Str::orderedUuid()->toString(),
                     'status' => 0,
                     'to_sftp' => $toSftp,
+                    'auto_billing' => $autoBilling,
                     'type' => null,
                 ])
             ];
@@ -90,6 +94,7 @@ abstract class GenerateInterfacesCommand extends Command
                 'transaction_id' => \Str::orderedUuid()->toString(),
                 'status' => 0,
                 'to_sftp' => $toSftp,
+                'auto_billing' => $autoBilling,
                 'type' => null,
                 'extras' => [
                     'interfaceFiles' => $this->notBankReferenceInterfaceFiles
@@ -106,6 +111,7 @@ abstract class GenerateInterfacesCommand extends Command
                 'transaction_id' => \Str::orderedUuid()->toString(),
                 'status' => 0,
                 'to_sftp' => $toSftp,
+                'auto_billing' => $autoBilling,
                 'type' => null,
                 'extras' => [
                     'withholding' => false,

@@ -147,8 +147,7 @@ class InterfaceFBListener extends InterfaceBaseListener
         try {
             $paymentResponse = $this->getPayments($event);
 
-            if (!empty($event->interfaceRequest->extras)
-                && ($event->interfaceRequest->extras['autoBilling'] ?? false)) {
+            if ($event->interfaceRequest->auto_billing ?? false) {
                 $this->setLogLine("Get automatic electronic payment file");
                 $autoElectronicPaymentFile = $this->electronicPaymentFile();
                 if (!empty($autoElectronicPaymentFile)) {
