@@ -791,8 +791,21 @@ class InterfaceFBListener extends InterfaceBaseListener
         $itemText = $this->formatStringLength("{$location['iata_code']}{$location['location_code']}{$this->getClosingDatetime($payment)->format('md')}$cardIssuerCode/$authorizationNumber/$username", 50);
 
         $line++;
-        $content = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
-        return [$content, $line];
+        $fileContent = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
+
+        $paymentAdjustments = Collect($payment['payment_adjustment'] ?? []);
+        if ($paymentAdjustments->count() > 0 &&
+            $paymentAdjustments->where('adjustment_type', 0)->count() > 0 &&
+            ($payment['fixed_details']['register_tolerance'] ?? true)) {
+            $tolerance = $paymentAdjustments->where('adjustment_type', 0)->first();
+            if (round(abs($tolerance['amount']), 2) != 0.00) {
+                $line++;
+                $allocationNumber = $this->formatStringLength($username, 18);
+                $itemText = $this->formatStringLength(" ", 50);
+                $fileContent .= $this->formatDZGLToleranceLine($tolerance, $line, $allocationNumber, $itemText);
+            }
+        }
+        return [$fileContent, $line];
 
     }
 
@@ -825,9 +838,21 @@ class InterfaceFBListener extends InterfaceBaseListener
         $accountRegister = $this->countryPaymentTypeFieldAccounts->where('id', $accountField['value'])->first();
 
         $line++;
-        $content = $this->formatDZGlLine($payment, "40", $accountRegister['accountable_account'], $line, $allocationNumber, $itemText);
+        $fileContent = $this->formatDZGlLine($payment, "40", $accountRegister['accountable_account'], $line, $allocationNumber, $itemText);
 
-        return [$content, $line];
+        $paymentAdjustments = Collect($payment['payment_adjustment'] ?? []);
+        if ($paymentAdjustments->count() > 0 &&
+            $paymentAdjustments->where('adjustment_type', 0)->count() > 0 &&
+            ($payment['fixed_details']['register_tolerance'] ?? true)) {
+            $tolerance = $paymentAdjustments->where('adjustment_type', 0)->first();
+            if (round(abs($tolerance['amount']), 2) != 0.00) {
+                $line++;
+                $allocationNumber = $this->formatStringLength($username, 18);
+                $itemText = $this->formatStringLength(" ", 50);
+                $fileContent .= $this->formatDZGLToleranceLine($tolerance, $line, $allocationNumber, $itemText);
+            }
+        }
+        return [$fileContent, $line];
     }
 
     public function electronicPaymentLine(array $payment, $location, int $line): array
@@ -851,9 +876,21 @@ class InterfaceFBListener extends InterfaceBaseListener
         $itemText = $this->formatStringLength("{$location['location_code']}000{$datetime->format('md')}M/$numberToSix/$username", 50);
 
         $line++;
-        $content = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
+        $fileContent = $this->formatDZGlLine($payment, "40", $account, $line, $allocationNumber, $itemText);
 
-        return [$content, $line];
+        $paymentAdjustments = Collect($payment['payment_adjustment'] ?? []);
+        if ($paymentAdjustments->count() > 0 &&
+            $paymentAdjustments->where('adjustment_type', 0)->count() > 0 &&
+            ($payment['fixed_details']['register_tolerance'] ?? true)) {
+            $tolerance = $paymentAdjustments->where('adjustment_type', 0)->first();
+            if (round(abs($tolerance['amount']), 2) != 0.00) {
+                $line++;
+                $allocationNumber = $this->formatStringLength($username, 18);
+                $itemText = $this->formatStringLength(" ", 50);
+                $fileContent .= $this->formatDZGLToleranceLine($tolerance, $line, $allocationNumber, $itemText);
+            }
+        }
+        return [$fileContent, $line];
     }
 
     public function setFileLastLine(string $fileContent, int $countHeaders, int $countLines): string
